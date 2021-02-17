@@ -28,9 +28,9 @@ for data in lidar_files:
 
     original_shape = np.asarray(pcd.points).shape
 
-    for i in range(288000 - original_shape[0]):
+    # for i in range(288000 - original_shape[0]):
 
-        pcd.points.append([0, 0, 0])
+    #     pcd.points.append([0, 0, 0])
 
     #print('{} / Original shape : {} / Appended shape : {}'.format(data, original_shape, np.asarray(pcd.points).shape))
 
