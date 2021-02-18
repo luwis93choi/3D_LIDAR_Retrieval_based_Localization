@@ -22,6 +22,7 @@ dataloader = sensor_dataloader(lidar_dataset_path=args['input_lidar_file_path'],
                                 pose_dataset_path=args['input_pose_file_path'],
                                 train_sequence=['00', '01', '02'], valid_sequence=['01'], test_sequence=['02'])
 
+dataloader.mode = 'test'
 for batch_idx, (lidar_range_img_tensor, current_img_tensor, pose_6DOF_tensor) in enumerate(dataloader):
 
     lidar_range_img = np.array(TF.to_pil_image(lidar_range_img_tensor))
