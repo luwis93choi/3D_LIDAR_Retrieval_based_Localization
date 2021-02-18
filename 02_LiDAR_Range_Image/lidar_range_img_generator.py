@@ -44,7 +44,7 @@ class range_img_generator():
         return pcd
 
     def convert_range_img(self, pcd_path=None, output_type='img_pixel'):
-
+        
         # In order to convert 3D LiDAR point cloud into 2D range image,
         # each point in point cloud has to be converted / correponded to pixel x, y coordinates in 2D image.
 
@@ -96,7 +96,7 @@ class range_img_generator():
             img_width = len(np.unique(x_in_range_img)) + img_width_padding
 
             range_img = np.zeros([img_height, img_width], dtype=np.uint8)
-
+            
             # Compose range image as the image with pixel value between 0 and 255
             if output_type == 'img_pixel':
                 range_img[y_in_range_img, x_in_range_img] = 255 * pcd_dist_normalized
