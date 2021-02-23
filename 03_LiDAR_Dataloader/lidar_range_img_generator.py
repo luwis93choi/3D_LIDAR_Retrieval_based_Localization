@@ -19,9 +19,6 @@ class range_img_generator():
         self.min_range = lidar_min_range
         self.max_range = lidar_max_range
 
-        self.pcd = None
-        self.intensity = None
-
     def convert_bin_to_pcd(self, bin_path=None):
 
         size_float = 4
@@ -60,7 +57,7 @@ class range_img_generator():
 
         else:
 
-            self.pcd = self.convert_bin_to_pcd(bin_path=pcd_path)
+            pcd = self.convert_bin_to_pcd(bin_path=pcd_path)
 
             # Resolution for final range image output
             max_width_steps = int(np.ceil((self.h_fov[1] - self.h_fov[0]) / self.h_res))
@@ -69,9 +66,9 @@ class range_img_generator():
             h_res_in_radian = self.h_res * (np.pi / 180)    # Horizontal Angular Resolution in Radian
             v_res_in_radian = self.v_res * (np.pi / 180)    # Vertical Angular Resolution in Radian
 
-            pcd_x = np.asarray(self.pcd.points)[:, 0]
-            pcd_y = np.asarray(self.pcd.points)[:, 1]
-            pcd_z = np.asarray(self.pcd.points)[:, 2]
+            pcd_x = np.asarray(pcd.points)[:, 0]
+            pcd_y = np.asarray(pcd.points)[:, 1]
+            pcd_z = np.asarray(pcd.points)[:, 2]
 
             pcd_dist_unnormalized = np.sqrt(np.power(pcd_x, 2) + np.power(pcd_y, 2) + np.power(pcd_z, 2))
             pcd_dist_normalized = (pcd_dist_unnormalized - self.min_range) / (self.max_range - self.min_range)
@@ -79,21 +76,21 @@ class range_img_generator():
             x_offset = self.h_fov[0] / self.h_res   # Apply offset for negative direction angle / Avoid negative index value
             x_in_range_img = np.arctan2(pcd_y, pcd_x) / h_res_in_radian
             x_in_range_img = np.trunc(x_in_range_img - x_offset).astype(np.int32)
-            x_in_range_img = len(np.unique(x_in_range_img)) - x_in_range_img
+            x_in_range_img = max(x_in_range_img) - x_in_range_img
 
             y_offset = -1 * self.v_fov[0] / self.v_res  # Apply offset for negative direction angle / Avoid negative index value
             y_in_range_img = np.arcsin(np.divide(pcd_z, pcd_dist_unnormalized)) / v_res_in_radian
             y_in_range_img = np.trunc(y_in_range_img + y_offset).astype(np.int32)
-            y_in_range_img = len(np.unique(y_in_range_img)) - y_in_range_img
+            y_in_range_img = max(y_in_range_img) - y_in_range_img
 
             # Extra padding for range image representation in order to avoid indexing failure
             # Due to mathematical error offsets that occur during float arithmetic operation, output size of range image varies each time.
             # In order to avoid indexing failure from this, add padding into image.
-            img_height_padding = 10
-            img_width_padding = 10
+            img_height_padding = 3
+            img_width_padding = 3
 
-            img_height = len(np.unique(y_in_range_img)) + img_height_padding
-            img_width = len(np.unique(x_in_range_img)) + img_width_padding
+            img_height = max(y_in_range_img) + img_height_padding
+            img_width = max(x_in_range_img) + img_width_padding
 
             range_img = np.zeros([img_height, img_width], dtype=np.uint8)
 
