@@ -28,7 +28,7 @@ dataset = sensor_dataset(lidar_dataset_path=args['input_lidar_file_path'],
 dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=8, drop_last=True)
 
 dataloader.dataset.mode = 'test'
-for batch_idx, (lidar_range_img_tensor, current_img_tensor, pose_6DOF_tensor) in enumerate(dataloader):
+for batch_idx, (lidar_range_img_tensor, current_img_tensor, pose_6DOF_tensor, index) in enumerate(dataloader):
 
     lidar_img_list = []
     for batch_index in range(lidar_range_img_tensor.size(0)):
@@ -43,7 +43,7 @@ for batch_idx, (lidar_range_img_tensor, current_img_tensor, pose_6DOF_tensor) in
 
     img_list = []
     for batch_index in range(current_img_tensor.size(0)):
-        current_img = np.array(TF.to_pil_image(current_img_tensor[0]))
+        current_img = np.array(TF.to_pil_image(current_img_tensor[batch_index]))
         current_img = cv.cvtColor(current_img, cv.COLOR_RGB2BGR)
         current_img = cv.resize(current_img, dsize=(int(1280/batch_size), int(240/batch_size)), interpolation=cv.INTER_CUBIC)
 
