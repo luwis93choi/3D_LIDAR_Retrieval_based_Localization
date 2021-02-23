@@ -18,17 +18,17 @@ ap.add_argument('-p', '--input_pose_file_path', type=str, required=True)
 
 args = vars(ap.parse_args())
 
-batch_size = 2
+batch_size = 1
 
 dataset = sensor_dataset(lidar_dataset_path=args['input_lidar_file_path'], 
                         img_dataset_path=args['input_img_file_path'], 
                         pose_dataset_path=args['input_pose_file_path'],
                         train_sequence=['00', '01', '02'], valid_sequence=['01'], test_sequence=['02'])
 
-dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=8, drop_last=True)
+dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=False, num_workers=8, drop_last=True)
 
 dataloader.dataset.mode = 'test'
-for batch_idx, (lidar_range_img_tensor, current_img_tensor, pose_6DOF_tensor, index) in enumerate(dataloader):
+for batch_idx, (lidar_range_img_tensor, current_img_tensor, pose_6DOF_tensor) in enumerate(dataloader):
 
     lidar_img_list = []
     for batch_index in range(lidar_range_img_tensor.size(0)):
