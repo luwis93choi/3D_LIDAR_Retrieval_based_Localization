@@ -102,16 +102,16 @@ class dataset_dict_generator():
                 self.train_len = self.data_idx
 
             elif dataset_dict_idx == 1:
-                self.valid_len = self.valid_len
+                self.valid_len = self.data_idx
 
             elif dataset_dict_idx == 2:
-                self.test_len = self.test_len
+                self.test_len = self.data_idx
 
             self.dataset_dict.close()
 
             dataset_dict_idx += 1
 
-class sensor_dataloader(torch.utils.data.Dataset):
+class sensor_dataset(torch.utils.data.Dataset):
 
     def __init__(self, lidar_dataset_path='', img_dataset_path='', pose_dataset_path='',
                        train_transform=None,
