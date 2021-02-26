@@ -84,7 +84,9 @@ class range_img_generator():
             y_idx_inRange = np.logical_and( (np.arcsin(np.divide(pcd_z, pcd_dist_unnormalized)) > (self.v_fov[0] * (np.pi / 180))),\
                                             (np.arcsin(np.divide(pcd_z, pcd_dist_unnormalized)) <= (self.v_fov[1] * (np.pi / 180))))
 
-            viable_data_idx = np.logical_and(x_idx_inRange, y_idx_inRange)
+            viable_data_idx = np.logical_and(x_idx_inRange, y_idx_inRange)  # Filter out the data indices that satisfy all FOV range conditions
+                                                                            # np.logical_and() will show which data satisfies given FOV range conditions
+            # Filter out the data based on viable data indices
             pcd_x = pcd_x[viable_data_idx]
             pcd_y = pcd_y[viable_data_idx]
             pcd_z = pcd_z[viable_data_idx]
@@ -92,7 +94,6 @@ class range_img_generator():
             pcd_dist_normalized = pcd_dist_normalized[viable_data_idx]
 
             x_offset = self.h_fov[0] / self.h_res   # Apply offset for negative direction angle / Avoid negative index value
-            print('X angle [rad] : {}'.format(np.arctan2(pcd_y, pcd_x)))
             x_in_range_img = np.arctan2(pcd_y, pcd_x) / h_res_in_radian
             x_in_range_img = np.trunc(x_in_range_img - x_offset).astype(np.int32)
             x_in_range_img = max(x_in_range_img) - x_in_range_img
@@ -124,5 +125,5 @@ class range_img_generator():
             # Resize the output range image into corrected resolution
             corrected_range_img = cv.resize(range_img, dsize=(max_width_steps, max_height_steps), interpolation=cv.INTER_CUBIC)
             
-            return corrected_range_img
+            return corrected_range_img, x_in_range_img, y_in_range_img
 
