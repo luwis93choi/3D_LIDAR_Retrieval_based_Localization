@@ -31,8 +31,8 @@ dataset = sensor_dataset(lidar_dataset_path=args['input_lidar_file_path'],
 dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=False, num_workers=8, drop_last=True)
 
 dataloader.dataset.mode = 'training'
-for batch_idx, (lidar_range_img_tensor, x_in_range_img_tensor, y_in_range_img_tensor, current_img_tensor, pose_6DOF_tensor) in enumerate(dataloader):
-
+for batch_idx, (lidar_range_img_tensor, x_in_range_img_tensor, y_in_range_img_tensor, pcd_dist_normalized_tensor, current_img_tensor, pose_6DOF_tensor) in enumerate(dataloader):
+    
     lidar_img_list = []
     for batch_index in range(lidar_range_img_tensor.size(0)):
 
@@ -44,6 +44,10 @@ for batch_idx, (lidar_range_img_tensor, x_in_range_img_tensor, y_in_range_img_te
     
     lidar_total_img = cv.hconcat(lidar_img_list)
 
+    x_in_range_img = x_in_range_img_tensor.numpy()[0, :]
+    y_in_range_img = y_in_range_img_tensor.numpy()[0, :]
+    pcd_dist_normalized = pcd_dist_normalized_tensor.numpy()[0, :]
+
     img_list = []
     for batch_index in range(current_img_tensor.size(0)):
         current_img = np.array(TF.to_pil_image(current_img_tensor[batch_index]))
@@ -54,16 +58,27 @@ for batch_idx, (lidar_range_img_tensor, x_in_range_img_tensor, y_in_range_img_te
 
     img_total = cv.hconcat(img_list)
 
-    # blended_output = cv.addWeighted(lidar_total_img, 0.9, img_total, 1.0, 0.0)
-
+    # ratio = (max(x_in_range_img) / (1280/batch_size))
+    # mask_width = int(ratio * (1280/batch_size))
+    # mask_height = int(ratio * (240/batch_size))
+    # lidar_mask = np.ones([mask_height + 1, mask_width + 1, 3])
+    # # lidar_mask = cv.resize(lidar_mask, dsize=(mask_width + 1, mask_height + 1), interpolation=cv.INTER_CUBIC)
+    
+    # lidar_mask[y_in_range_img, x_in_range_img] = np.array([pcd_dist_normalized, 0 * pcd_dist_normalized, 0 * pcd_dist_normalized]).transpose(1, 0)
+    
+    # lidar_mask = cv.resize(lidar_mask, dsize=(int(1280/batch_size), int(240/batch_size)), interpolation=cv.INTER_CUBIC)
+    
+    # final_output = lidar_mask
+    
     blended_output = copy.deepcopy(img_total)
     offset = int(240 * 0.45/batch_size)
     for x in range(0, lidar_total_img.shape[1]):
         for y in range(0, lidar_total_img.shape[0]):
             blended_output[y + offset, x] = lidar_total_img[y, x]
 
-    # final_output = cv.vconcat([lidar_total_img, img_total, blended_output])
-    final_output = cv.vconcat([lidar_total_img, img_total, blended_output])
+    block = 255 * np.ones([int(240 * 0.2/batch_size), int(1280/batch_size), 3], dtype=np.uint8)
+
+    final_output = cv.vconcat([lidar_total_img, img_total, block, blended_output])
 
     cv.imshow('3D LiDAR Range Image', final_output)
     cv.waitKey(1)
