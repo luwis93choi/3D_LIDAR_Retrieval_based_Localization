@@ -125,5 +125,5 @@ class range_img_generator():
             # Resize the output range image into corrected resolution
             corrected_range_img = cv.resize(range_img, dsize=(max_width_steps, max_height_steps), interpolation=cv.INTER_CUBIC)
             
-            return corrected_range_img, x_in_range_img, y_in_range_img
+            return corrected_range_img, x_in_range_img, y_in_range_img, 255 * pcd_dist_normalized
 
