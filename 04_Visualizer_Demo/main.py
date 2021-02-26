@@ -57,6 +57,17 @@ for batch_idx, (lidar_range_img_tensor, x_in_range_img_tensor, y_in_range_img_te
     y_in_range_img = y_in_range_img_tensor.numpy()[0, :]
     pcd_dist_normalized = pcd_dist_normalized_tensor.numpy()[0, :]
 
+    # Build the color dictionary for the bounding box based on object detection label
+    color_dict = {'Car' : (0, 255, 0),
+                    'Van' : (255, 0, 0),
+                    'Truck' : (0, 0, 255),
+                    'Pedestrian' : (255, 255, 255),
+                    'Person_sitting' : (255, 255, 0),
+                    'Cyclist' : (255, 0, 255),
+                    'Tram' : (0, 255, 255),
+                    'Misc' : (128, 128, 128),
+                    'DontCare' : (128, 128, 0)}
+
     img_list = []
     left_coord_ratio = []
     top_coord_ratio = []
@@ -74,7 +85,7 @@ for batch_idx, (lidar_range_img_tensor, x_in_range_img_tensor, y_in_range_img_te
             right_coord_ratio.append((bbox_list[i][2] / current_img.shape[1]).item())
             bottom_coord_ratio.append((bbox_list[i][3] / current_img.shape[0]).item())
 
-            cv.rectangle(current_img, (int(bbox_list[i][0]), int(bbox_list[i][1])), (int(bbox_list[i][2]), int(bbox_list[i][3])), (0, 255, 0), 3)
+            cv.rectangle(current_img, (int(bbox_list[i][0]), int(bbox_list[i][1])), (int(bbox_list[i][2]), int(bbox_list[i][3])), color_dict[label_list[i][0]], 3)
 
         current_img = cv.resize(current_img, dsize=(int(1280/batch_size), int(240/batch_size)), interpolation=cv.INTER_CUBIC)
 
@@ -91,8 +102,9 @@ for batch_idx, (lidar_range_img_tensor, x_in_range_img_tensor, y_in_range_img_te
     
     # Use original height, width ratio within original image resolution in order to map the bounding box onto blended output
     for i in range(len(bbox_list)):
+
         cv.rectangle(blended_output, (int(blended_output.shape[1] * left_coord_ratio[i]), int(blended_output.shape[0] * top_coord_ratio[i])), \
-                                     (int(blended_output.shape[1] * right_coord_ratio[i]), int(blended_output.shape[0] * bottom_coord_ratio[i])), (0, 0, 0), 3)
+                                     (int(blended_output.shape[1] * right_coord_ratio[i]), int(blended_output.shape[0] * bottom_coord_ratio[i])), color_dict[label_list[i][0]], 3)
     
     Text1 = 255 * np.ones([int(240 * 0.2/batch_size), int(1280/batch_size), 3], dtype=np.uint8)
     cv.putText(Text1, '3D LiDAR Range Image | Horizontal FOV : {} ~ {} | Vertical FOV : {} ~ {}'.format(h_fov[0], h_fov[1], v_fov[0], v_fov[1]), \
