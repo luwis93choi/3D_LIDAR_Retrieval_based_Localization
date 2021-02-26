@@ -14,13 +14,13 @@ from lidar_range_img_generator import range_img_generator
 
 class dataset_dict_generator():
 
-    def __init__(self, lidar_dataset_path='', img_dataset_path='', pose_dataset_path='',
+    def __init__(self, lidar_dataset_path='', img_dataset_path='', label_dataset_path='', transformation_dataset_path='',
                        train_sequence=['00'], valid_sequence=['01'], test_sequence=['02']):
 
         self.lidar_dataset_path = lidar_dataset_path
         self.img_dataset_path = img_dataset_path
-        self.pose_dataset_path = pose_dataset_path
-
+        self.label_dataset_path = label_dataset_path
+        self.transformation_dataset_path = transformation_dataset_path
 
         dataset_sequence_list = np.array([train_sequence, valid_sequence, test_sequence], dtype=np.object)
         
@@ -51,7 +51,8 @@ class dataset_dict_generator():
 
             self.dataset_writer = csv.writer(self.dataset_dict)
 
-            header_list = ['current_index', 'Sequence_index', 'current_lidar_path', 'current_img_path', 'current_x [m]', 'current_y [m]', 'current_z [m]', 'current_roll [rad]', 'current_pitch [rad]', 'current_yaw [rad]']
+            header_list = ['current_index', 'Sequence_index', 'current_lidar_path', 'current_img_path', 'label_path', 'tranformation_path']
+
             self.dataset_writer.writerow(header_list)
 
             for sequence_idx in np.array(dataset_type):
@@ -62,37 +63,19 @@ class dataset_dict_generator():
                 img_base_path = self.img_dataset_path + '/' + sequence_idx + '/image_2'
                 img_data_name = sorted(os.listdir(img_base_path))
 
-                # Pose data accumulation
-                lines = []
-                pose_file = open(self.pose_dataset_path + '/' + sequence_idx + '.txt', 'r')
-                while True:
-                    line = pose_file.readline()
-                    lines.append(line)
-                    if not line: break
-                pose_file.close()
+                if dataset_type == 'training':
+                    label_base_path = self.label_dataset_path + '/' + sequence_idx + '/label_2'
+                    label_data_name = sorted(os.listdir(label_base_path))
 
-                for lidar_name, img_name, line in zip(np.array(lidar_data_name), np.array(img_data_name), np.array(lines)):
+                transformation_base_path = self.transformation_dataset_path + '/' + sequence_idx + '/calib'
+                transformation_data_name = sorted(os.listdir(transformation_base_path))
+
+                for lidar_name, img_name, label_name, transform_name in zip(np.array(lidar_data_name), np.array(img_data_name), np.array(label_data_name), np.array(transformation_data_name)):
                     
-                    # Pose data re-organization into x, y, z, euler angles
-                    pose_line = line
-                    pose = pose_line.strip().split()
-                    
-                    current_pose_T = [float(pose[3]), float(pose[7]), float(pose[11])]
-                    current_pose_Rmat = np.array([
-                                                [float(pose[0]), float(pose[1]), float(pose[2])],
-                                                [float(pose[4]), float(pose[5]), float(pose[6])],
-                                                [float(pose[8]), float(pose[9]), float(pose[10])]
-                                                ])
-
-                    current_x = current_pose_T[0]
-                    current_y = current_pose_T[1]
-                    current_z = current_pose_T[2]
-
-                    current_roll = np.arctan2(current_pose_Rmat[2][1], current_pose_Rmat[2][2])
-                    current_pitch = np.arctan2(-1 * current_pose_Rmat[2][0], np.sqrt(current_pose_Rmat[2][1]**2 + current_pose_Rmat[2][2]**2))
-                    current_yaw = np.arctan2(current_pose_Rmat[1][0], current_pose_Rmat[0][0])
-
-                    data = [self.data_idx, sequence_idx, lidar_base_path + '/' + lidar_name, img_base_path + '/' + img_name, current_x, current_y, current_z, current_roll, current_pitch, current_yaw]
+                    data = [self.data_idx, sequence_idx, lidar_base_path + '/' + lidar_name, \
+                                                         img_base_path + '/' + img_name, \
+                                                         label_base_path + '/' + label_name, \
+                                                         transformation_base_path + '/' + transform_name]
 
                     self.dataset_writer.writerow(data)
 
@@ -113,7 +96,7 @@ class dataset_dict_generator():
 
 class sensor_dataset(torch.utils.data.Dataset):
 
-    def __init__(self, lidar_dataset_path='', img_dataset_path='', pose_dataset_path='',
+    def __init__(self, lidar_dataset_path='', img_dataset_path='', label_dataset_path='', transformation_dataset_path='',
                        train_transform=None,
                        valid_transform=None,
                        test_transform=None,
@@ -123,7 +106,8 @@ class sensor_dataset(torch.utils.data.Dataset):
 
         self.lidar_dataset_path = lidar_dataset_path
         self.img_dataset_path = img_dataset_path
-        self.pose_dataset_path = pose_dataset_path
+        self.label_dataset_path = label_dataset_path
+        self.transformation_dataset_path = transformation_dataset_path
 
         self.train_sequence = train_sequence
         self.train_transform = train_transform
@@ -144,7 +128,8 @@ class sensor_dataset(torch.utils.data.Dataset):
 
         self.dataset_dict_generator = dataset_dict_generator(lidar_dataset_path=lidar_dataset_path, 
                                                              img_dataset_path=img_dataset_path, 
-                                                             pose_dataset_path=pose_dataset_path,
+                                                             label_dataset_path=label_dataset_path, 
+                                                             transformation_dataset_path=transformation_dataset_path,
                                                              train_sequence=train_sequence, valid_sequence=valid_sequence, test_sequence=test_sequence)
 
         self.train_data_list = []
@@ -154,6 +139,7 @@ class sensor_dataset(torch.utils.data.Dataset):
         for row_data in train_reader:
             self.train_data_list.append(row_data)
         train_dataset_dict.close()
+        print('train dataset ready')
 
         self.valid_data_list = []
         valid_dataset_dict = open(self.dataset_dict_generator.valid_dataset_dict_path, 'r', encoding='utf-8')
@@ -162,6 +148,7 @@ class sensor_dataset(torch.utils.data.Dataset):
         for row_data in valid_reader:
             self.valid_data_list.append(row_data)
         valid_dataset_dict.close()
+        print('validation dataset ready')
 
         self.test_data_list = []
         test_dataset_dict = open(self.dataset_dict_generator.test_dataset_dict_path, 'r', encoding='utf-8')
@@ -170,6 +157,7 @@ class sensor_dataset(torch.utils.data.Dataset):
         for row_data in test_reader:
             self.test_data_list.append(row_data)
         test_dataset_dict.close()
+        print('test dataset ready')
 
     def __getitem__(self, index):
 
@@ -192,10 +180,21 @@ class sensor_dataset(torch.utils.data.Dataset):
         current_img = Image.open(item[3])
         current_img = TF.to_tensor(current_img)
 
-        pose_6DOF = [float(i) for i in item[4:]]
-        pose_6DOF = torch.tensor(pose_6DOF)
+        label_list = []
+        bbox_list = []
+        label_file = open(item[4], 'r')
+        while True:
+            
+            line = label_file.readline()
+            if not line: break
 
-        return lidar_range_img, x_in_range_img, y_in_range_img, pcd_dist_normalized, current_img, pose_6DOF
+            data = line.strip().split()
+            label_list.append(data[0])
+            bbox_list.append([float(data[4]), float(data[5]), float(data[6]), float(data[7])])
+        
+        label_file.close()
+        
+        return lidar_range_img, x_in_range_img, y_in_range_img, pcd_dist_normalized, current_img, label_list, bbox_list
 
     def __len__(self):
 
