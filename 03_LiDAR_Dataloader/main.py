@@ -27,7 +27,7 @@ dataset = sensor_dataset(lidar_dataset_path=args['input_lidar_file_path'],
 
 dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=False, num_workers=8, drop_last=True)
 
-dataloader.dataset.mode = 'test'
+dataloader.dataset.mode = 'training'
 for batch_idx, (lidar_range_img_tensor, current_img_tensor, pose_6DOF_tensor) in enumerate(dataloader):
 
     lidar_img_list = []
