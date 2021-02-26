@@ -182,8 +182,11 @@ class sensor_dataset(torch.utils.data.Dataset):
         elif self.mode == 'test':
             item = self.test_data_list[index]
         
-        lidar_range_img = self.lidar_range_img_generator.convert_range_img(pcd_path=item[2], output_type='img_pixel')
+        lidar_range_img, x_in_range_img, y_in_range_img = self.lidar_range_img_generator.convert_range_img(pcd_path=item[2], output_type='img_pixel')
         lidar_range_img = TF.to_tensor(lidar_range_img)
+
+        x_in_range_img = torch.tensor(x_in_range_img)
+        y_in_range_img = torch.tensor(y_in_range_img)
 
         current_img = Image.open(item[3])
         current_img = TF.to_tensor(current_img)
@@ -191,7 +194,7 @@ class sensor_dataset(torch.utils.data.Dataset):
         pose_6DOF = [float(i) for i in item[4:]]
         pose_6DOF = torch.tensor(pose_6DOF)
 
-        return lidar_range_img, current_img, pose_6DOF
+        return lidar_range_img, x_in_range_img, y_in_range_img, current_img, pose_6DOF
 
     def __len__(self):
 
