@@ -1,4 +1,5 @@
 import os
+import sys
 import argparse
 import cv2 as cv
 import numpy as np
@@ -7,6 +8,8 @@ import open3d as o3d
 import torch
 from torch import threshold
 from torch.utils.data import DataLoader
+
+import collections
 
 from sensor_dataset import sensor_dataset
 
@@ -21,6 +24,7 @@ ap.add_argument('-i', '--input_img_file_path', type=str, required=True)
 ap.add_argument('-p', '--input_pose_file_path', type=str, required=True)
 ap.add_argument('-b', '--input_batch_size', type=int, required=True)
 ap.add_argument('-c', '--input_CUDA_num', type=str, required=True)
+ap.add_argument('-e', '--training_epoch', type=int, required=True)
 
 args = vars(ap.parse_args())
 
@@ -28,11 +32,15 @@ batch_size = args['input_batch_size']
 
 cuda_num = args['input_CUDA_num']
 
+training_epoch = args['training_epoch']
+
 if cuda_num != '':        
     # Load main processing unit for neural network
     PROCESSOR = torch.device('cuda:'+cuda_num if torch.cuda.is_available() else 'cpu')
 
 print('Device in use : {}'.format(PROCESSOR))
+
+loss_Q = collections.deque(maxlen=1000)
 
 dataset = sensor_dataset(lidar_dataset_path=args['input_lidar_file_path'], 
                         img_dataset_path=args['input_img_file_path'], 
@@ -40,61 +48,44 @@ dataset = sensor_dataset(lidar_dataset_path=args['input_lidar_file_path'],
                         train_sequence=['00', '01', '02'], valid_sequence=['01'], test_sequence=['02'])
 
 dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=8, drop_last=True)
-
 dataloader.dataset.mode = 'training'
-for batch_idx, (lidar_range_img_tensor, current_img_tensor, pose_6DOF_tensor) in enumerate(dataloader):
 
-    print(lidar_range_img_tensor.shape)
-    print(current_img_tensor.shape)
+for epoch in range(training_epoch):
 
-    print(torch.cat((lidar_range_img_tensor, current_img_tensor), dim=1).shape)
+    loss_Q.clear()
 
-    lidar_img_list = []
-    for batch_index in range(lidar_range_img_tensor.size(0)):
+    for batch_idx, (lidar_range_img_tensor, current_img_tensor, pose_6DOF_tensor) in enumerate(dataloader):
 
-        lidar_range_img = np.array(TF.to_pil_image(lidar_range_img_tensor[batch_index]))
-        lidar_range_img = cv.resize(lidar_range_img, dsize=(int(1280/batch_size), int(240/batch_size)), interpolation=cv.INTER_CUBIC)
-        lidar_range_img = cv.applyColorMap(lidar_range_img, cv.COLORMAP_HSV)
+        combined_sensor_img_tensor = (torch.cat((lidar_range_img_tensor, current_img_tensor), dim=1)).to(PROCESSOR)
 
-        lidar_img_list.append(lidar_range_img)
-    
-    lidar_total_img = cv.hconcat(lidar_img_list)
+        if batch_idx == 0:
 
-    img_list = []
-    for batch_index in range(current_img_tensor.size(0)):
-        current_img = np.array(TF.to_pil_image(current_img_tensor[batch_index]))
-        current_img = cv.cvtColor(current_img, cv.COLOR_RGB2BGR)
-        current_img = cv.resize(current_img, dsize=(int(1280/batch_size), int(240/batch_size)), interpolation=cv.INTER_CUBIC)
+            print('[Init Network]')
 
-        img_list.append(current_img)
+            Autoencoder = CNN_Autoencoder(device=PROCESSOR, input_size=combined_sensor_img_tensor.shape, batch_size=batch_size, learning_rate=0.001)
 
-    img_total = cv.hconcat(img_list)
+        Autoencoder.train()
+        
+        est_img_tensor = Autoencoder(combined_sensor_img_tensor)
 
-    combined_sensor_img = cv.vconcat([lidar_total_img, img_total])
+        Autoencoder.optimizer.zero_grad()
+        recovery_loss = Autoencoder.loss(est_img_tensor, combined_sensor_img_tensor)
+        recovery_loss.backward()
+        Autoencoder.optimizer.step()
 
-    combined_sensor_img = combined_sensor_img.transpose(2, 0, 1)
+        loss_Q.append(recovery_loss.item())
 
-    combined_sensor_img_tensor = (torch.from_numpy(combined_sensor_img)).to(PROCESSOR)
+        updates = []
+        updates.append('\n')
+        updates.append('[Train Epoch {}/{}][Progress : {:.2%}][Batch Idx : {}] \n'.format(epoch, training_epoch, batch_idx/len(dataloader), batch_idx))
+        updates.append('[Immediate Loss] : {:.4f} \n'.format(recovery_loss.item()))
+        updates.append('[Running Average Loss] : {:.4f} \n'.format(sum(loss_Q) / len(loss_Q)))
+        final_updates = ''.join(updates)
 
-    if batch_idx == 0:
+        sys.stdout.write(final_updates)
+        
+        if batch_idx < len(dataloader)-1:
+            for line_num in range(len(updates)):
+                sys.stdout.write("\x1b[1A\x1b[2K")
 
-        print('[Init Network]')
-
-        Autoencoder = CNN_Autoencoder(device=PROCESSOR, input_size=combined_sensor_img.shape, batch_size=1, learning_rate=0.001)
-
-    print(combined_sensor_img.shape)
-
-    Autoencoder.train()
-    
-    output = Autoencoder(combined_sensor_img_tensor)
-
-    # Autoencoder.optimizer.zero_grad()
-
-    # # Loss Calculation
-
-    # Autoencoder.optimizer.backward()
-    # Autoencoder.optimizer.step()
-
-    # cv.imshow('3D LiDAR Range Image', combined_sensor_img)
-    # cv.waitKey(1)
 
