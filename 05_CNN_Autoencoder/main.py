@@ -5,11 +5,16 @@ import cv2 as cv
 import numpy as np
 import open3d as o3d
 
+import time
+import matplotlib.pyplot as plt
+
 import torch
 from torch import threshold
 from torch.utils.data import DataLoader
 
 import collections
+
+import pytorch_ssim     # SSIM Loss : https://github.com/Po-Hsun-Su/pytorch-ssim
 
 from sensor_dataset import sensor_dataset
 
@@ -40,8 +45,6 @@ if cuda_num != '':
 
 print('Device in use : {}'.format(PROCESSOR))
 
-loss_Q = collections.deque(maxlen=1000)
-
 dataset = sensor_dataset(lidar_dataset_path=args['input_lidar_file_path'], 
                         img_dataset_path=args['input_img_file_path'], 
                         pose_dataset_path=args['input_pose_file_path'],
@@ -50,15 +53,19 @@ dataset = sensor_dataset(lidar_dataset_path=args['input_lidar_file_path'],
 dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=8, drop_last=True)
 dataloader.dataset.mode = 'training'
 
+start_time = str(time.time())
+loss_history = []
+plt.figure(figsize=(10, 8))
+
 for epoch in range(training_epoch):
 
-    loss_Q.clear()
+    loss_Q = collections.deque(maxlen=1000)
 
     for batch_idx, (lidar_range_img_tensor, current_img_tensor, pose_6DOF_tensor) in enumerate(dataloader):
 
         combined_sensor_img_tensor = (torch.cat((lidar_range_img_tensor, current_img_tensor), dim=1)).to(PROCESSOR)
 
-        if batch_idx == 0:
+        if (epoch == 0) and (batch_idx == 0):
 
             print('[Init Network]')
 
@@ -69,7 +76,7 @@ for epoch in range(training_epoch):
         est_img_tensor = Autoencoder(combined_sensor_img_tensor)
 
         Autoencoder.optimizer.zero_grad()
-        recovery_loss = Autoencoder.loss(est_img_tensor, combined_sensor_img_tensor)
+        recovery_loss = -Autoencoder.loss(est_img_tensor, combined_sensor_img_tensor)
         recovery_loss.backward()
         Autoencoder.optimizer.step()
 
@@ -89,3 +96,16 @@ for epoch in range(training_epoch):
                 sys.stdout.write("\x1b[1A\x1b[2K")
 
 
+        if (epoch == 0) and (batch_idx == 0):
+            if os.path.exists('./' + start_time) == False:
+                print('Creating save directory')
+                os.mkdir('./' + start_time)
+
+        loss_history.append(sum(loss_Q) / len(loss_Q))
+        plt.plot([i for i in range(len(loss_history))], loss_history, 'bo-')
+        plt.title('CNN Autoencoder recovery training result - SSIM loss')
+        plt.xlabel('Iteration')
+        plt.ylabel('Running Average SSIM loss')
+        plt.tight_layout()
+        plt.savefig('./' + start_time + '/Training_Result.png')
+        plt.cla()
