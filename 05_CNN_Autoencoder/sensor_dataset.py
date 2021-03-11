@@ -191,7 +191,7 @@ class sensor_dataset(torch.utils.data.Dataset):
         lidar_range_img = cv.applyColorMap(lidar_range_img, cv.COLORMAP_HSV)
         lidar_range_img = TF.to_tensor(lidar_range_img)
 
-        current_img = Image.open(item[3])
+        current_img = np.array(Image.open(item[3]))
         current_img = cv.cvtColor(current_img, cv.COLOR_RGB2BGR)
         current_img = cv.resize(current_img, dsize=(self.output_resolution[0], self.output_resolution[1]), interpolation=cv.INTER_CUBIC)
         current_img = TF.to_tensor(current_img)
