@@ -4,7 +4,7 @@ lidar_dataset_path="/media/luwis/Linux Workspace/ICSL_Project/Visual SLAM/KITTI_
 image_dataset_path="/media/luwis/Linux Workspace/ICSL_Project/Visual SLAM/KITTI_data_odometry_color/dataset/sequences"
 pose_dataset_path="/media/luwis/Linux Workspace/ICSL_Project/Visual SLAM/KITTI_data_odometry_color/data_odometry_poses/dataset/poses"
 
-batch_size=4
+batch_size=1
 
 cuda_num='0'
 
