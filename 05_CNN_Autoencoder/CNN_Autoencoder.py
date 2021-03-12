@@ -124,7 +124,7 @@ class CNN_Autoencoder(nn.Module):
 
     def forward(self, x):
 
-        self.layer_disp(x, window_name='Input Img', col_num=3, resize_ratio=0.4)
+        self.layer_disp(x, window_name='Input Img', col_num=2, resize_ratio=0.4)
 
         # print('----------------------------------------')
         # print(x.shape)
@@ -175,6 +175,6 @@ class CNN_Autoencoder(nn.Module):
 
         # print(x.shape)
 
-        self.layer_disp(x, window_name='Recovered Img', col_num=3, resize_ratio=0.4)
+        self.layer_disp(x, window_name='Recovered Img', col_num=2, resize_ratio=0.4)
 
         return x
