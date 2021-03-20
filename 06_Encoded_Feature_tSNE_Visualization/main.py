@@ -45,10 +45,14 @@ if cuda_num != '':
 
 print('Device in use : {}'.format(PROCESSOR))
 
+train_sequence=['00', '01', '05', '08', '09']
+valid_sequence=['03', '04', '06', '07']
+test_sequence=['02', '10']
+
 dataset = sensor_dataset(lidar_dataset_path=args['input_lidar_file_path'], 
                         img_dataset_path=args['input_img_file_path'], 
                         pose_dataset_path=args['input_pose_file_path'],
-                        train_sequence=['00', '01', '02'], valid_sequence=['01'], test_sequence=['02'])
+                        train_sequence=train_sequence, valid_sequence=valid_sequence, test_sequence=test_sequence)
 
 dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=8, drop_last=True)
 dataloader.dataset.mode = 'training'
@@ -57,9 +61,9 @@ start_time = str(time.time())
 loss_history = []
 plt.figure(figsize=(10, 8))
 
-for epoch in range(training_epoch):
+loss_Q = collections.deque(maxlen=1000)
 
-    loss_Q = collections.deque(maxlen=1000)
+for epoch in range(training_epoch):
 
     # for batch_idx, (lidar_range_img_tensor, current_img_tensor, pose_6DOF_tensor) in enumerate(dataloader):
     for batch_idx, (current_img_tensor, pose_6DOF_tensor) in enumerate(dataloader):
@@ -103,11 +107,23 @@ for epoch in range(training_epoch):
                 print('Creating save directory')
                 os.mkdir('./' + start_time)
 
+        f = open('./' + start_time + '/running_avg_loss.txt', 'a')
+        f.write(str(sum(loss_Q) / len(loss_Q)) + '\n')
+        f.close()
+
+        f = open('./' + start_time + '/immediate_avg_loss.txt', 'a')
+        f.write(str(recovery_loss.item()) + '\n')
+        f.close()
+
         loss_history.append(sum(loss_Q) / len(loss_Q))
         plt.plot([i for i in range(len(loss_history))], loss_history, 'bo-')
-        plt.title('CNN Autoencoder recovery training result - SSIM loss')
+        plt.title('CNN Autoencoder recovery training result - SSIM loss' + '\nTrain Seq : ' + str(train_sequence) + ' Valid Seq : ' + str(valid_sequence) + ' Test : ' + str(test_sequence))
         plt.xlabel('Iteration')
         plt.ylabel('Running Average SSIM loss')
         plt.tight_layout()
         plt.savefig('./' + start_time + '/Training_Result.png')
         plt.cla()
+
+    torch.save({'epoch' : epoch,
+                'Autoencoder' : Autoencoder.state_dict(),
+                'Autoencoder_optimizer' : Autoencoder.optimizer.state_dict()}, './' + start_time + '/Autoencoder.pth')
