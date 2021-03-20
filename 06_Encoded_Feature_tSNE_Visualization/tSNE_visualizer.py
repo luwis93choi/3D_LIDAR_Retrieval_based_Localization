@@ -81,7 +81,9 @@ for batch_idx, (current_img_tensor, pose_6DOF_tensor) in enumerate(dataloader):
 
     encoded_feature_tensor = Autoencoder.encoder(combined_sensor_img_tensor)
 
-    # print(encoded_feature_tensor)
+    flat_encoded_feature_tensor = torch.flatten(encoded_feature_tensor, start_dim=1)
+
+    flat_encoded_feature = flat_encoded_feature_tensor.clone().detach().cpu().numpy()[0]
 
     est_img_tensor = Autoencoder.decoder(encoded_feature_tensor)
 
@@ -92,6 +94,7 @@ for batch_idx, (current_img_tensor, pose_6DOF_tensor) in enumerate(dataloader):
     updates = []
     updates.append('\n')
     updates.append('[Progress : {:.2%}][Batch Idx : {}] \n'.format(batch_idx/len(dataloader), batch_idx))
+    updates.append('[Batch Idx : {}] : {} \n'.format(batch_idx, flat_encoded_feature))
     updates.append('[Immediate Loss] : {:.4f} \n'.format(recovery_loss.item()))
     updates.append('[Running Average Loss] : {:.4f} \n'.format(sum(loss_Q) / len(loss_Q)))
     final_updates = ''.join(updates)
@@ -113,6 +116,13 @@ for batch_idx, (current_img_tensor, pose_6DOF_tensor) in enumerate(dataloader):
 
     f = open('./[Valid]' + start_time + '/immediate_avg_loss.txt', 'a')
     f.write(str(recovery_loss.item()) + '\n')
+    f.close()
+
+    f = open('./[Valid]' + start_time + '/flat_encoded_features.txt', 'a')
+    f.write('[')
+    np.savetxt(f, flat_encoded_feature, newline=', ')
+    f.write(']')
+    f.write('\n')
     f.close()
 
     
