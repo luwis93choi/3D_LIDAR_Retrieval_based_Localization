@@ -1,11 +1,16 @@
 import os
 import sys
 import argparse
+
+from sklearn import cluster
 import cv2 as cv
 import numpy as np
 
 import time
 import matplotlib.pyplot as plt
+from matplotlib import cm
+import matplotlib
+from mpl_toolkits.mplot3d import Axes3D
 
 import collections
 
@@ -18,7 +23,10 @@ from sensor_dataset import sensor_dataset
 
 from CNN_Autoencoder import CNN_Autoencoder
 
+from sklearn.manifold import TSNE
+from sklearn.cluster import AgglomerativeClustering
 
+### Dataset & Model Preparation ###
 ap = argparse.ArgumentParser()
 
 ap.add_argument('-l', '--input_lidar_file_path', type=str, required=True)
@@ -54,21 +62,26 @@ dataset = sensor_dataset(lidar_dataset_path=args['input_lidar_file_path'],
                         pose_dataset_path=args['input_pose_file_path'],
                         train_sequence=train_sequence, valid_sequence=valid_sequence, test_sequence=test_sequence)
 
-dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=8, drop_last=True)
+dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=False, num_workers=8, drop_last=True)
 dataloader.dataset.mode = 'validation'
 
 start_time = str(time.time())
 loss_history = []
-plt.figure(figsize=(10, 8))
 
 loss_Q = collections.deque(maxlen=1000)
+
+
+### Feature Encoding using CNN-based Autoencoder ###
+
+encoded_feature_list = []
+xyz_pose_list = []
 
 # for batch_idx, (lidar_range_img_tensor, current_img_tensor, pose_6DOF_tensor) in enumerate(dataloader):
 for batch_idx, (current_img_tensor, pose_6DOF_tensor) in enumerate(dataloader):
 
     # combined_sensor_img_tensor = (torch.cat((lidar_range_img_tensor, current_img_tensor), dim=1)).to(PROCESSOR)
     combined_sensor_img_tensor = current_img_tensor.to(PROCESSOR)
-    
+
     if batch_idx == 0:
         
         checkpoint = torch.load(model_path)
@@ -85,6 +98,9 @@ for batch_idx, (current_img_tensor, pose_6DOF_tensor) in enumerate(dataloader):
 
     flat_encoded_feature = flat_encoded_feature_tensor.clone().detach().cpu().numpy()[0]
 
+    encoded_feature_list.append(flat_encoded_feature)
+    xyz_pose_list.append(pose_6DOF_tensor.clone().cpu().numpy()[0, 0:3])
+
     est_img_tensor = Autoencoder.decoder(encoded_feature_tensor)
 
     recovery_loss = -Autoencoder.loss(est_img_tensor, combined_sensor_img_tensor)
@@ -94,7 +110,7 @@ for batch_idx, (current_img_tensor, pose_6DOF_tensor) in enumerate(dataloader):
     updates = []
     updates.append('\n')
     updates.append('[Progress : {:.2%}][Batch Idx : {}] \n'.format(batch_idx/len(dataloader), batch_idx))
-    updates.append('[Batch Idx : {}] : {} \n'.format(batch_idx, flat_encoded_feature))
+    # updates.append('[Batch Idx : {}] : {} \n'.format(batch_idx, flat_encoded_feature))
     updates.append('[Immediate Loss] : {:.4f} \n'.format(recovery_loss.item()))
     updates.append('[Running Average Loss] : {:.4f} \n'.format(sum(loss_Q) / len(loss_Q)))
     final_updates = ''.join(updates)
@@ -118,11 +134,45 @@ for batch_idx, (current_img_tensor, pose_6DOF_tensor) in enumerate(dataloader):
     f.write(str(recovery_loss.item()) + '\n')
     f.close()
 
-    f = open('./[Valid]' + start_time + '/flat_encoded_features.txt', 'a')
-    f.write('[')
-    np.savetxt(f, flat_encoded_feature, newline=', ')
-    f.write(']')
-    f.write('\n')
-    f.close()
+
+### Pose-based Agglomerative Clustering ###
+
+agglo_clusterer = AgglomerativeClustering(n_clusters=None, linkage='ward', distance_threshold=5.0)
+clusters = agglo_clusterer.fit(xyz_pose_list)
+
+num_clusters = len(np.unique(clusters.labels_))
+
+color_map = []
+cmap = matplotlib.cm.get_cmap('rainbow')
+for i in range(num_clusters):
+    color_map.append(cmap(i/num_clusters))
+
+### t-SNE Encoded Feature Visualization ###
+
+# fig = plt.figure(figsize=(10, 8))
+# ax = Axes3D(fig)
+
+plt.figure(figsize=(10, 8))
+
+encoded_feature_list = np.array(encoded_feature_list)
+
+print(encoded_feature_list.shape)
+
+embedded_encoded_features = TSNE(n_components=2, verbose=1, random_state=42, n_jobs=8).fit_transform(encoded_feature_list)
+
+print(embedded_encoded_features.shape)
+
+plt.title('CNN Autoencoder-based encoded feature visualization with t-SNE')
+for idx in range(len(embedded_encoded_features)):
+    # print('{} {} : {}'.format(embedded_encoded_features[idx, 0], embedded_encoded_features[idx, 1], str(clusters.labels_[idx])))
+    plt.scatter(embedded_encoded_features[idx, 0], embedded_encoded_features[idx, 1], color=color_map[clusters.labels_[idx]])
+    plt.text(embedded_encoded_features[idx, 0], embedded_encoded_features[idx, 1], str(clusters.labels_[idx]), fontsize=12, color='black')
+    plt.draw()
+    plt.pause(0.01)
+
+# plt.show()
+
+
+
 
     
