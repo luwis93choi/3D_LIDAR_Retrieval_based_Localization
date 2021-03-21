@@ -6,7 +6,7 @@ pose_dataset_path="/home/byungchanchoi/KITTI Dataset/data_odometry_poses/dataset
 
 batch_size=32
 
-cuda_num='2'
+cuda_num='1'
 
 training_epoch=100
 
