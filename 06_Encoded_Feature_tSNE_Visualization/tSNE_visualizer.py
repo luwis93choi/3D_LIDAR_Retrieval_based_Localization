@@ -10,7 +10,7 @@ import time
 import matplotlib.pyplot as plt
 from matplotlib import cm
 import matplotlib
-from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.animation as animation
 
 import collections
 
@@ -36,6 +36,7 @@ ap.add_argument('-b', '--input_batch_size', type=int, required=True)
 ap.add_argument('-c', '--input_CUDA_num', type=str, required=True)
 ap.add_argument('-e', '--training_epoch', type=int, required=True)
 ap.add_argument('-m', '--trained_model', type=str, required=True)
+ap.add_argument('-a', '--save_plot_animation', type=int, required=True)
 
 args = vars(ap.parse_args())
 
@@ -46,6 +47,8 @@ cuda_num = args['input_CUDA_num']
 training_epoch = args['training_epoch']
 
 model_path = args['trained_model']
+
+save_plot_animation = args['save_plot_animation']
 
 if cuda_num != '':        
     # Load main processing unit for neural network
@@ -147,12 +150,11 @@ cmap = matplotlib.cm.get_cmap('rainbow')
 for i in range(num_clusters):
     color_map.append(cmap(i/num_clusters))
 
+
+
 ### t-SNE Encoded Feature Visualization ###
 
-# fig = plt.figure(figsize=(10, 8))
-# ax = Axes3D(fig)
-
-plt.figure(figsize=(10, 8))
+fig = plt.figure(figsize=(20, 16))
 
 encoded_feature_list = np.array(encoded_feature_list)
 
@@ -163,15 +165,38 @@ embedded_encoded_features = TSNE(n_components=2, verbose=1, random_state=42, n_j
 print(embedded_encoded_features.shape)
 
 plt.title('CNN Autoencoder-based encoded feature visualization with t-SNE')
+plt.xlabel('t-SNE embedded feature[0]')
+plt.ylabel('t-SNE embedded feature[1]')
 for idx in range(len(embedded_encoded_features)):
+    print('[t-SNE Plotting Progress : {:.2%}]'.format(idx/len(embedded_encoded_features)))
     # print('{} {} : {}'.format(embedded_encoded_features[idx, 0], embedded_encoded_features[idx, 1], str(clusters.labels_[idx])))
     plt.scatter(embedded_encoded_features[idx, 0], embedded_encoded_features[idx, 1], color=color_map[clusters.labels_[idx]])
-    plt.text(embedded_encoded_features[idx, 0], embedded_encoded_features[idx, 1], str(clusters.labels_[idx]), fontsize=12, color='black')
-    plt.draw()
-    plt.pause(0.01)
+    plt.text(embedded_encoded_features[idx, 0], embedded_encoded_features[idx, 1], str(clusters.labels_[idx]), fontsize=6, color='black')
+    
+plt.tight_layout()
+plt.show()
 
-# plt.show()
+if save_plot_animation:
+    plt.cla()
+    
+    current_idx = 0
+    def draw_func(each_frame):
 
+        global current_idx
+
+        x, y = each_frame
+
+        plt.scatter(x, y, color=color_map[clusters.labels_[current_idx]])
+        plt.text(x, y, str(clusters.labels_[current_idx]), fontsize=12, color='black')
+
+        current_idx += 1
+
+    tSNE_animation = animation.FuncAnimation(fig=fig,
+                                            func=draw_func,
+                                            frames=embedded_encoded_features)
+
+    writer = animation.writers['ffmpeg'](fps=25)
+    tSNE_animation.save('./[Valid]' + start_time + '/tSNE_visualization_result.mp4', writer=writer, dpi=128)
 
 
 
