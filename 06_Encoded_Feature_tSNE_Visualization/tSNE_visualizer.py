@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 import matplotlib
 import matplotlib.animation as animation
+matplotlib.use('Agg')
 
 import collections
 
@@ -25,6 +26,9 @@ from CNN_Autoencoder import CNN_Autoencoder
 
 from sklearn.manifold import TSNE
 from sklearn.cluster import AgglomerativeClustering
+
+import pyqtgraph as pg
+from pyqtgraph.Qt import QtGui, QtCore
 
 ### Dataset & Model Preparation ###
 ap = argparse.ArgumentParser()
@@ -58,6 +62,7 @@ print('Device in use : {}'.format(PROCESSOR))
 
 train_sequence=['00', '01', '05', '08', '09']
 valid_sequence=['03', '04', '06', '07']
+# valid_sequence=['03']
 test_sequence=['02', '10']
 
 dataset = sensor_dataset(lidar_dataset_path=args['input_lidar_file_path'], 
@@ -138,6 +143,7 @@ for batch_idx, (current_img_tensor, pose_6DOF_tensor) in enumerate(dataloader):
     f.close()
 
 
+
 ### Pose-based Agglomerative Clustering ###
 
 agglo_clusterer = AgglomerativeClustering(n_clusters=None, linkage='ward', distance_threshold=5.0)
@@ -164,40 +170,44 @@ embedded_encoded_features = TSNE(n_components=2, verbose=1, random_state=42, n_j
 
 print(embedded_encoded_features.shape)
 
-plt.title('CNN Autoencoder-based encoded feature visualization with t-SNE')
-plt.xlabel('t-SNE embedded feature[0]')
-plt.ylabel('t-SNE embedded feature[1]')
-for idx in range(len(embedded_encoded_features)):
-    print('[t-SNE Plotting Progress : {:.2%}]'.format(idx/len(embedded_encoded_features)))
-    # print('{} {} : {}'.format(embedded_encoded_features[idx, 0], embedded_encoded_features[idx, 1], str(clusters.labels_[idx])))
-    plt.scatter(embedded_encoded_features[idx, 0], embedded_encoded_features[idx, 1], color=color_map[clusters.labels_[idx]])
-    plt.text(embedded_encoded_features[idx, 0], embedded_encoded_features[idx, 1], str(clusters.labels_[idx]), fontsize=6, color='black')
+app = pg.mkQApp()
+
+win = pg.PlotWidget()
+win.resize(1000,600)
+win.setWindowTitle('CNN Autoencoder-based encoded feature visualization with t-SNE')
+win.show()
+
+scatter = pg.ScatterPlotItem(symbol='o', size=1)
+win.addItem(scatter)
+
+ptr = 0
+plot_len = len(embedded_encoded_features)
+
+def update():
+
+    global win, scatter, ptr, color_map, embedded_encoded_features, plot_len
+
+    temp = np.transpose(embedded_encoded_features, (1, 0))
+
+    pos = []
+
+    plot_color = tuple(255 * np.array(color_map[clusters.labels_[ptr]]))[:3]
+
+    point = {'pos': temp[:, ptr], 
+                'pen' : {'color' : plot_color, 'width' : 5}}
     
-plt.tight_layout()
-plt.show()
+    pos.append(point)
 
-if save_plot_animation:
-    plt.cla()
-    
-    current_idx = 0
-    def draw_func(each_frame):
+    scatter.addPoints(pos)
 
-        global current_idx
+    if ptr < plot_len-1:
+        ptr += 1
 
-        x, y = each_frame
+timer = QtCore.QTimer()
+timer.timeout.connect(update)
+timer.start(50)
 
-        plt.scatter(x, y, color=color_map[clusters.labels_[current_idx]])
-        plt.text(x, y, str(clusters.labels_[current_idx]), fontsize=12, color='black')
-
-        current_idx += 1
-
-    tSNE_animation = animation.FuncAnimation(fig=fig,
-                                            func=draw_func,
-                                            frames=embedded_encoded_features)
-
-    writer = animation.writers['ffmpeg'](fps=25)
-    tSNE_animation.save('./[Valid]' + start_time + '/tSNE_visualization_result.mp4', writer=writer, dpi=128)
-
+app.exec_()
 
 
     
