@@ -30,6 +30,14 @@ from sklearn.cluster import AgglomerativeClustering
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtGui, QtCore
 
+'''
+    PyQtGraph Installation
+
+    1. conda install pyqt5
+    2. pip install pyqtgraph
+'''
+
+
 ### Dataset & Model Preparation ###
 ap = argparse.ArgumentParser()
 
