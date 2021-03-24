@@ -114,26 +114,33 @@ class dataset_dict_generator():
                 label_idx = np.where(mask)
 
                 if len(label_idx[0]) > 1:
-                    # Split between train and test
-                    train_valid_idx, test_idx = train_test_split(label_idx[0], test_size=test_ratio, random_state=42, shuffle=True)
+                    # Split between train and validation/test
 
-                if len(train_valid_idx) > 1:
-                    # Split between train and validation
-                    train_valid_ratio = train_ratio + valid_ratio
-                    rearranged_valid_ratio = 1 - (train_ratio / train_valid_ratio)
+                    train_idx, valid_test_idx = train_test_split(label_idx[0], test_size=test_ratio, random_state=42, shuffle=True)
 
-                    train_idx, valid_idx = train_test_split(train_valid_idx, test_size=rearranged_valid_ratio, random_state=42, shuffle=True)
+                    data_type_list[train_idx] = 'train'
 
-                self.seq_idx_dict['{}-{}'.format(sequence_num, label)] = label_idx[0]
+                    self.seq_idx_dict['{}-{}'.format(sequence_num, label)] = train_idx
 
-            if len(train_idx) > 1:
-                data_type_list[train_idx] = 'train'
-            
-            if len(valid_idx) > 1:
-                data_type_list[valid_idx] = 'valid'
-            
-            if len(test_idx) > 1:
-                data_type_list[test_idx] = 'test'
+                if len(valid_test_idx) > 1:
+                    # Split between validation and test
+                    valid_test_ratio = valid_ratio + test_ratio
+                    rearranged_test_ratio = 1 - (valid_ratio / valid_test_ratio)
+
+                    valid_idx, test_idx = train_test_split(valid_test_idx, test_size=rearranged_test_ratio, random_state=42, shuffle=True)
+
+                    data_type_list[valid_idx] = 'valid'
+
+                    data_type_list[test_idx] = 'test'
+
+                else:
+                    # Exception Handling : Randomly assign the leftover as validation or test
+                    for idx in valid_test_idx:
+
+                        if random.random() >= 0.5:
+                            data_type_list[idx] = 'valid'
+                        else:
+                            data_type_list[idx] = 'test'
 
             ### Writing dataset attributes on Full Dataset csv ###
             for img_name, pose, cluster_label, data_type in zip(img_data_name, pose_list, cluster_labels, data_type_list):
@@ -150,3 +157,52 @@ class dataset_dict_generator():
                 self.sequence_idx += 1
 
         self.full_dataset_dict.close()
+
+        print(self.seq_idx_dict)
+
+class sensor_dataset(torch.utils.data.Dataset):
+
+    def __init__(self, img_dataset_path='', pose_dataset_path='',
+                       sequence_to_use=['00'], train_ratio=0, valid_ratio=0, test_ratio=0,
+                       cluster_linkage='ward', cluster_distance=1.0, mode='training'):
+
+        self.mode = mode
+
+        self.dataset_dict_generator = dataset_dict_generator(img_dataset_path=img_dataset_path, pose_dataset_path=pose_dataset_path,
+                                                             sequence_to_use=sequence_to_use, train_ratio=train_ratio, valid_ratio=valid_ratio, test_ratio=test_ratio,
+                                                             cluster_linkage=cluster_linkage, cluster_distance=cluster_distance)
+
+        self.train_data_list = []
+        train_dataset_dict = open(self.dataset_dict_generator.train_dataset_dict_path, 'r', encoding='utf-8')
+        train_reader = csv.reader(train_dataset_dict)
+        next(train_reader)     # Skip header row
+        for row_data in train_reader:
+            self.train_data_list.append(row_data)
+        train_dataset_dict.close()
+
+        self.valid_data_list = []
+        valid_dataset_dict = open(self.dataset_dict_generator.valid_dataset_dict_path, 'r', encoding='utf-8')
+        valid_reader = csv.reader(valid_dataset_dict)
+        next(valid_reader)     # Skip heaer row
+        for row_data in valid_reader:
+            self.valid_data_list.append(row_data)
+        valid_dataset_dict.close()
+
+        self.test_data_list = []
+        test_dataset_dict = open(self.dataset_dict_generator.test_dataset_dict_path, 'r', encoding='utf-8')
+        test_reader = csv.reader(test_dataset_dict)
+        next(test_reader)      # Skip header row
+        for row_data in test_reader:
+            self.test_data_list.append(row_data)
+        test_dataset_dict.close()
+
+    def __getitem__(self, index):
+
+        if self.mode == 'training':
+            item = self.train_data_list[index]
+
+        elif self.mode == 'validation':
+            item = self.valid_data_list[index]
+
+        elif self.mode == 'test':
+            item = self.test_data_list[index]
