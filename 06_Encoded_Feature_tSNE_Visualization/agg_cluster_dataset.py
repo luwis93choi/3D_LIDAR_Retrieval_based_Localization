@@ -124,6 +124,11 @@ class dataset_dict_generator():
 
                 label_idx = np.where(mask)
 
+                train_idx = []
+                valid_idx = []
+                test_idx = []
+                valid_test_idx = []
+
                 if len(label_idx[0]) > 1:
                     # Split between train and validation/test
 
@@ -138,6 +143,17 @@ class dataset_dict_generator():
                     combined_path_list = np.core.defchararray.add(combined_path_list, img_data_name[train_idx])
                     self.seq_path_dict['{}-{}'.format(sequence_num, label)] = combined_path_list
 
+                else:
+                    # Exception Handling (Only 1 image in cluster) : Randomly assign the leftover as validation or test
+                    data_type_list[label_idx] = 'train'
+
+                    ### Create positive image path list for each cluster label ###
+                    base_path_list = np.array([img_base_path] * len(label_idx))
+                    path_list_append = np.array(['/'] * len(label_idx))
+                    combined_path_list = np.core.defchararray.add(base_path_list, path_list_append)
+                    combined_path_list = np.core.defchararray.add(combined_path_list, img_data_name[label_idx])
+                    self.seq_path_dict['{}-{}'.format(sequence_num, label)] = combined_path_list
+
                 if len(valid_test_idx) > 1:
                     # Split between validation and test
                     valid_test_ratio = valid_ratio + test_ratio
@@ -150,7 +166,7 @@ class dataset_dict_generator():
                     data_type_list[test_idx] = 'test'
 
                 else:
-                    # Exception Handling : Randomly assign the leftover as validation or test
+                    # Exception Handling (Only 1 image to split between validation and test) : Randomly assign the leftover as validation or test
                     for idx in valid_test_idx:
 
                         if random.random() >= 0.5:
@@ -251,9 +267,9 @@ class sensor_dataset(torch.utils.data.Dataset):
         ##############################
 
         anchor_img = np.array(Image.open(item[3]))
+        anchor_img_copy = copy.deepcopy(Image.open(item[3]))
         anchor_img = cv.cvtColor(anchor_img, cv.COLOR_RGB2BGR)
         anchor_img = cv.resize(anchor_img, dsize=(self.output_resolution[0], self.output_resolution[1]), interpolation=cv.INTER_CUBIC)
-        anchor_img_copy = copy.deepcopy(anchor_img)
         anchor_img = TF.to_tensor(anchor_img)
 
 
@@ -278,7 +294,7 @@ class sensor_dataset(torch.utils.data.Dataset):
         # Use augmented image as positive data
         if len(positive_path_list) <= 1:
 
-            positive_img = self.transform(anchor_img_copy)
+            positive_img = np.array(self.transform(anchor_img_copy))
             positive_img = cv.cvtColor(positive_img, cv.COLOR_RGB2BGR)
             positive_img = cv.resize(positive_img, dsize=(self.output_resolution[0], self.output_resolution[1]), interpolation=cv.INTER_CUBIC)
             positive_img = TF.to_tensor(positive_img)
@@ -288,7 +304,7 @@ class sensor_dataset(torch.utils.data.Dataset):
         ### Negative Image Selection ###
         ################################
 
-        negative_labels = list(copy.deepcopy(self.dataset_dict_generator.seq_path_dict.keys()))
+        negative_labels = list(self.dataset_dict_generator.seq_path_dict.keys())
         negative_labels.remove(anchor_img_label)
 
         negative_label_choice = random.choice(negative_labels)
