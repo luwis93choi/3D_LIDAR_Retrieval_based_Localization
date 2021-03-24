@@ -54,7 +54,7 @@ dataset = sensor_dataset(img_dataset_path=args['input_img_file_path'],
                          mode='training', output_resolution=[1280, 240],
                          transform=None)
 
-dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=4, drop_last=True)
+dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=8, drop_last=True)
 dataloader.dataset.mode = 'training'
 
 start_time = str(time.time())
@@ -86,7 +86,7 @@ for epoch in range(training_epoch):
 
         Feature_encoder.optimizer.zero_grad()
         triplet_loss = Feature_encoder.loss(anchor_encoded_feature, positive_encoded_feature) \
-                       + Feature_encoder.loss(anchor_encoded_feature, negative_encoded_feature) \
+                       - Feature_encoder.loss(anchor_encoded_feature, negative_encoded_feature) \
                        + margin
         triplet_loss.backward()
         Feature_encoder.optimizer.step()
