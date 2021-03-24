@@ -46,11 +46,20 @@ class dataset_dict_generator():
         ######################################
         
         self.full_dataset_dict = open(self.full_dataset_dict_path, 'w', encoding='utf-8', newline='')
+        self.train_dataset_dict = open(self.train_dataset_dict_path, 'w', encoding='utf-8', newline='')
+        self.valid_dataset_dict = open(self.valid_dataset_dict_path, 'w', encoding='utf-8', newline='')
+        self.test_dataset_dict = open(self.test_dataset_dict_path, 'w', encoding='utf-8', newline='')
 
-        self.dataset_writer = csv.writer(self.full_dataset_dict)
+        self.full_dataset_writer = csv.writer(self.full_dataset_dict)
+        self.train_dataset_writer = csv.writer(self.train_dataset_dict)
+        self.valid_dataset_writer = csv.writer(self.valid_dataset_dict)
+        self.test_dataset_writer = csv.writer(self.test_dataset_dict)
 
         header_list = ['current_index', 'Sequence_num', 'Sequence_idx', 'current_img_path', 'current_x [m]', 'current_y [m]', 'current_z [m]', 'current_roll [rad]', 'current_pitch [rad]', 'current_yaw [rad]', 'cluster_label', 'type']
-        self.dataset_writer.writerow(header_list)
+        self.full_dataset_writer.writerow(header_list)
+        self.train_dataset_writer.writerow(header_list)
+        self.valid_dataset_writer.writerow(header_list)
+        self.test_dataset_writer.writerow(header_list)
 
         ### Iteration over all dataset sequences ###
         self.data_idx = 0
@@ -155,14 +164,24 @@ class dataset_dict_generator():
                         '{}-{}'.format(sequence_num, cluster_label), \
                         data_type]
 
-                self.dataset_writer.writerow(data)
+                self.full_dataset_writer.writerow(data)
+
+                if data_type == 'train':
+                    self.train_dataset_writer.writerow(data)
+                    self.train_len += 1
+                
+                elif data_type == 'valid':
+                    self.valid_dataset_writer.writerow(data)
+                    self.valid_len += 1
+
+                elif data_type == 'test':
+                    self.test_dataset_writer.writerow(data)
+                    self.test_len += 1
 
                 self.data_idx += 1
                 self.sequence_idx += 1
 
         self.full_dataset_dict.close()
-
-        print(self.seq_path_dict)
 
 class sensor_dataset(torch.utils.data.Dataset):
 
@@ -226,6 +245,7 @@ class sensor_dataset(torch.utils.data.Dataset):
         anchor_img = TF.to_tensor(anchor_img)
 
 
+
         ### Positive Image Selection ###
         anchor_img_label = item[10]
         anchor_img_idx= item[11]
@@ -273,3 +293,15 @@ class sensor_dataset(torch.utils.data.Dataset):
         negative_img = TF.to_tensor(negative_img)
 
         return anchor_img, positive_img, negative_img
+
+    def __len__(self):
+
+        if self.mode == 'training':
+            return self.dataset_dict_generator.train_len
+
+        elif self.mode == 'validation':
+            return self.dataset_dict_generator.valid_len
+
+        elif self.mode == 'test':
+            return self.dataset_dict_generator.test_len
+
