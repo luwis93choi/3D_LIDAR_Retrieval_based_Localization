@@ -93,7 +93,7 @@ class CNN_Encoder(nn.Module):
 
     def forward(self, x):
 
-        self.layer_disp(x, window_name='Input Img', col_num=2, resize_ratio=1.0)
+        # self.layer_disp(x, window_name='Input Img', col_num=2, resize_ratio=1.0)
 
         # print('----------------------------------------')
         # print(x.shape)
