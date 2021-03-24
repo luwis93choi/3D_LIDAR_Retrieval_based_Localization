@@ -14,6 +14,7 @@ from PIL import Image
 import cv2 as cv
 
 import random
+import copy
 
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.model_selection import train_test_split
@@ -130,9 +131,11 @@ class dataset_dict_generator():
 
                     data_type_list[train_idx] = 'train'
 
-                    # Create positive image path list for each cluster label
+                    ### Create positive image path list for each cluster label ###
                     base_path_list = np.array([img_base_path] * len(train_idx))
-                    combined_path_list = np.core.defchararray.add(base_path_list, img_data_name[train_idx])
+                    path_list_append = np.array(['/'] * len(train_idx))
+                    combined_path_list = np.core.defchararray.add(base_path_list, path_list_append)
+                    combined_path_list = np.core.defchararray.add(combined_path_list, img_data_name[train_idx])
                     self.seq_path_dict['{}-{}'.format(sequence_num, label)] = combined_path_list
 
                 if len(valid_test_idx) > 1:
@@ -192,6 +195,8 @@ class sensor_dataset(torch.utils.data.Dataset):
                        transform=None):
 
         self.mode = mode
+        self.output_resolution = output_resolution
+        self.transform = transform
 
         if self.transform is None:
             self.transform = transforms.Compose([transforms.RandomApply([transforms.ColorJitter(brightness=0.5, contrast=0.5)], p=0.5),
@@ -239,6 +244,8 @@ class sensor_dataset(torch.utils.data.Dataset):
         elif self.mode == 'test':
             item = self.test_data_list[index]
 
+        print(item)
+
         ##############################
         ### Anchor Image Selection ###
         ##############################
@@ -246,6 +253,7 @@ class sensor_dataset(torch.utils.data.Dataset):
         anchor_img = np.array(Image.open(item[3]))
         anchor_img = cv.cvtColor(anchor_img, cv.COLOR_RGB2BGR)
         anchor_img = cv.resize(anchor_img, dsize=(self.output_resolution[0], self.output_resolution[1]), interpolation=cv.INTER_CUBIC)
+        anchor_img_copy = copy.deepcopy(anchor_img)
         anchor_img = TF.to_tensor(anchor_img)
 
 
@@ -270,7 +278,7 @@ class sensor_dataset(torch.utils.data.Dataset):
         # Use augmented image as positive data
         if len(positive_path_list) <= 1:
 
-            positive_img = self.trasform(anchor_img)
+            positive_img = self.transform(anchor_img_copy)
             positive_img = cv.cvtColor(positive_img, cv.COLOR_RGB2BGR)
             positive_img = cv.resize(positive_img, dsize=(self.output_resolution[0], self.output_resolution[1]), interpolation=cv.INTER_CUBIC)
             positive_img = TF.to_tensor(positive_img)
@@ -280,7 +288,7 @@ class sensor_dataset(torch.utils.data.Dataset):
         ### Negative Image Selection ###
         ################################
 
-        negative_labels = list(self.dataset_dict_generator.seq_path_dict.keys())
+        negative_labels = list(copy.deepcopy(self.dataset_dict_generator.seq_path_dict.keys()))
         negative_labels.remove(anchor_img_label)
 
         negative_label_choice = random.choice(negative_labels)
