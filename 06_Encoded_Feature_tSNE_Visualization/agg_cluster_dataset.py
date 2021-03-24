@@ -158,8 +158,6 @@ class dataset_dict_generator():
 
         self.full_dataset_dict.close()
 
-        print(self.seq_idx_dict)
-
 class sensor_dataset(torch.utils.data.Dataset):
 
     def __init__(self, img_dataset_path='', pose_dataset_path='',
