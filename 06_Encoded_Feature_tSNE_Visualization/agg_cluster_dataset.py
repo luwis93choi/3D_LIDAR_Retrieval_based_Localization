@@ -120,7 +120,9 @@ class dataset_dict_generator():
 
                     data_type_list[train_idx] = 'train'
 
-                    self.seq_idx_dict['{}-{}'.format(sequence_num, label)] = train_idx
+                    base_path_list = np.array([img_base_path] * len(train_idx))
+                    combined_path_list = np.core.defchararray.add(base_path_list, img_data_name[train_idx])
+                    self.seq_idx_dict['{}-{}'.format(sequence_num, label)] = combined_path_list
 
                 if len(valid_test_idx) > 1:
                     # Split between validation and test
@@ -158,11 +160,14 @@ class dataset_dict_generator():
 
         self.full_dataset_dict.close()
 
+        print(self.seq_idx_dict)
+
 class sensor_dataset(torch.utils.data.Dataset):
 
     def __init__(self, img_dataset_path='', pose_dataset_path='',
                        sequence_to_use=['00'], train_ratio=0, valid_ratio=0, test_ratio=0,
-                       cluster_linkage='ward', cluster_distance=1.0, mode='training'):
+                       cluster_linkage='ward', cluster_distance=1.0, 
+                       mode='training', output_resolution=[1280, 240]):
 
         self.mode = mode
 
@@ -204,3 +209,26 @@ class sensor_dataset(torch.utils.data.Dataset):
 
         elif self.mode == 'test':
             item = self.test_data_list[index]
+
+        anchor_img = np.array(Image.open(item[3]))
+        anchor_img = cv.cvtColor(anchor_img, cv.COLOR_RGB2BGR)
+        anchor_img = cv.resize(anchor_img, dsize=(self.output_resolution[0], self.output_resolution[1]), interpolation=cv.INTER_CUBIC)
+        anchor_img = TF.to_tensor(anchor_img)
+
+        anchor_img_label = item[10]
+        anchor_img_idx= item[11]
+
+        positive_idx_list = self.dataset_dict_generator.seq_idx_dict[anchor_img_label]
+
+        positive_idx = anchor_img_idx
+        while positive_idx == anchor_img_idx:
+
+            positive_idx = random.choice(positive_idx_list)
+
+        # positive_img = 
+
+        # If there are not enough images in the cluster, apply random data augmentation.
+        # Use augmented image as positive data
+        # if len(positive_idx_list) <= 1:
+
+        #     positive_img = 
