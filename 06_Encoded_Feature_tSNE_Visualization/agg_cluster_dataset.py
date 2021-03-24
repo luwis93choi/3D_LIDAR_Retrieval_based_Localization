@@ -239,14 +239,20 @@ class sensor_dataset(torch.utils.data.Dataset):
         elif self.mode == 'test':
             item = self.test_data_list[index]
 
+        ##############################
+        ### Anchor Image Selection ###
+        ##############################
+
         anchor_img = np.array(Image.open(item[3]))
         anchor_img = cv.cvtColor(anchor_img, cv.COLOR_RGB2BGR)
         anchor_img = cv.resize(anchor_img, dsize=(self.output_resolution[0], self.output_resolution[1]), interpolation=cv.INTER_CUBIC)
         anchor_img = TF.to_tensor(anchor_img)
 
 
-
+        ################################
         ### Positive Image Selection ###
+        ################################
+
         anchor_img_label = item[10]
         anchor_img_idx= item[11]
 
@@ -273,8 +279,10 @@ class sensor_dataset(torch.utils.data.Dataset):
             positive_img = TF.to_tensor(positive_img)
 
 
-
+        ################################
         ### Negative Image Selection ###
+        ################################
+        
         negative_labels = list(self.dataset_dict_generator.seq_path_dict.keys())
         negative_labels.remove(anchor_img_label)
 
