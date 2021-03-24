@@ -18,7 +18,7 @@ import pytorch_ssim     # SSIM Loss : https://github.com/Po-Hsun-Su/pytorch-ssim
 
 from agg_cluster_dataset import sensor_dataset
 
-from CNN_Autoencoder import CNN_Autoencoder
+from CNN_Encoder import CNN_Encoder
 
 import torchvision.transforms.functional as TF
 
@@ -65,33 +65,38 @@ loss_Q = collections.deque(maxlen=1000)
 
 for epoch in range(training_epoch):
 
-    # for batch_idx, (lidar_range_img_tensor, current_img_tensor, pose_6DOF_tensor) in enumerate(dataloader):
-    for batch_idx, (current_img_tensor, pose_6DOF_tensor) in enumerate(dataloader):
+    for batch_idx, (anchor_img, positive_img, negative_img) in enumerate(dataloader):
 
-        # combined_sensor_img_tensor = (torch.cat((lidar_range_img_tensor, current_img_tensor), dim=1)).to(PROCESSOR)
-        combined_sensor_img_tensor = current_img_tensor.to(PROCESSOR)
+        anchor_img_tensor = anchor_img.to(PROCESSOR)
+        positive_img_tensor = positive_img.to(PROCESSOR)
+        negative_img_tensor = negative_img.to(PROCESSOR)
 
         if (epoch == 0) and (batch_idx == 0):
 
             print('[Init Network]')
 
-            Autoencoder = CNN_Autoencoder(device=PROCESSOR, input_size=combined_sensor_img_tensor.shape, batch_size=batch_size, learning_rate=0.001)
+            Feature_encoder = CNN_Encoder(device=PROCESSOR, input_size=anchor_img_tensor.shape, batch_size=batch_size, learning_rate=0.001, loss_type='mse')
 
-        Autoencoder.train()
+        Feature_encoder.train()
         
-        est_img_tensor = Autoencoder(combined_sensor_img_tensor)
+        anchor_encoded_feature = Feature_encoder(anchor_img_tensor)
+        positive_encoded_feature = Feature_encoder(positive_img_tensor)
+        negative_encoded_feature = Feature_encoder(negative_img_tensor)
+        margin = 1.0
 
-        Autoencoder.optimizer.zero_grad()
-        recovery_loss = -Autoencoder.loss(est_img_tensor, combined_sensor_img_tensor)
-        recovery_loss.backward()
-        Autoencoder.optimizer.step()
+        Feature_encoder.optimizer.zero_grad()
+        triplet_loss = Feature_encoder.loss(anchor_encoded_feature, positive_encoded_feature) \
+                       + Feature_encoder.loss(anchor_encoded_feature, negative_encoded_feature) \
+                       + margin
+        triplet_loss.backward()
+        Feature_encoder.optimizer.step()
 
-        loss_Q.append(recovery_loss.item())
+        loss_Q.append(triplet_loss.item())
 
         updates = []
         updates.append('\n')
         updates.append('[Train Epoch {}/{}][Progress : {:.2%}][Batch Idx : {}] \n'.format(epoch, training_epoch, batch_idx/len(dataloader), batch_idx))
-        updates.append('[Immediate Loss] : {:.4f} \n'.format(recovery_loss.item()))
+        updates.append('[Immediate Loss] : {:.4f} \n'.format(triplet_loss.item()))
         updates.append('[Running Average Loss] : {:.4f} \n'.format(sum(loss_Q) / len(loss_Q)))
         final_updates = ''.join(updates)
 
@@ -112,12 +117,12 @@ for epoch in range(training_epoch):
         f.close()
 
         f = open('./' + start_time + '/immediate_avg_loss.txt', 'a')
-        f.write(str(recovery_loss.item()) + '\n')
+        f.write(str(triplet_loss.item()) + '\n')
         f.close()
 
         loss_history.append(sum(loss_Q) / len(loss_Q))
         plt.plot([i for i in range(len(loss_history))], loss_history, 'bo-')
-        plt.title('CNN Autoencoder recovery training result - SSIM loss' + '\nSeq in Use : ' + str(seq_in_use))
+        plt.title('CNN Encoder - Triplet Loss' + '\nSeq in Use : ' + str(seq_in_use))
         plt.xlabel('Iteration')
         plt.ylabel('Running Average SSIM loss')
         plt.tight_layout()
@@ -125,7 +130,7 @@ for epoch in range(training_epoch):
         plt.cla()
 
     torch.save({'epoch' : epoch,
-                'Autoencoder' : Autoencoder.state_dict(),
-                'Autoencoder_optimizer' : Autoencoder.optimizer.state_dict()}, './' + start_time + '/Autoencoder.pth')
+                'Autoencoder' : Feature_encoder.state_dict(),
+                'Autoencoder_optimizer' : Feature_encoder.optimizer.state_dict()}, './' + start_time + '/Autoencoder.pth')
 
 
