@@ -251,3 +251,25 @@ class sensor_dataset(torch.utils.data.Dataset):
             positive_img = cv.cvtColor(positive_img, cv.COLOR_RGB2BGR)
             positive_img = cv.resize(positive_img, dsize=(self.output_resolution[0], self.output_resolution[1]), interpolation=cv.INTER_CUBIC)
             positive_img = TF.to_tensor(positive_img)
+
+
+
+        ### Negative Image Selection ###
+        negative_labels = list(self.dataset_dict_generator.seq_path_dict.keys())
+        negative_labels.remove(anchor_img_label)
+
+        negative_label_choice = random.choice(negative_labels)
+
+        negative_path_list = self.dataset_dict_generator.seq_path_dict[negative_label_choice]
+
+        negative_idx = anchor_img_idx
+        while negative_idx == anchor_img_idx:
+
+            negative_img_path = random.choice(negative_path_list)
+        
+        negative_img = np.array(Image.open(negative_img_path))
+        negative_img = cv.cvtColor(negative_img, cv.COLOR_RGB2BGR)
+        negative_img = cv.resize(negative_img, dsize=(self.output_resolution[0], self.output_resolution[1]), interpolation=cv.INTER_CUBIC)
+        negative_img = TF.to_tensor(negative_img)
+
+        return anchor_img, positive_img, negative_img
