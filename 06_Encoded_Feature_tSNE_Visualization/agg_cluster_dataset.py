@@ -5,6 +5,7 @@ import csv
 
 import torch
 import torch.utils.data
+from torchvision import transforms
 import torchvision.transforms.functional as TF
 
 import PIL
@@ -168,9 +169,11 @@ class sensor_dataset(torch.utils.data.Dataset):
     def __init__(self, img_dataset_path='', pose_dataset_path='',
                        sequence_to_use=['00'], train_ratio=0, valid_ratio=0, test_ratio=0,
                        cluster_linkage='ward', cluster_distance=1.0, 
-                       mode='training', output_resolution=[1280, 240]):
+                       mode='training', output_resolution=[1280, 240],
+                       transform=transforms.Compose([transforms.RandomApply([transforms.ColorJitter(brightness=0.5, contrast=0.5)], p=0.4)])):
 
         self.mode = mode
+        self.transform = transform
 
         self.dataset_dict_generator = dataset_dict_generator(img_dataset_path=img_dataset_path, pose_dataset_path=pose_dataset_path,
                                                              sequence_to_use=sequence_to_use, train_ratio=train_ratio, valid_ratio=valid_ratio, test_ratio=test_ratio,
@@ -233,8 +236,12 @@ class sensor_dataset(torch.utils.data.Dataset):
         positive_img = cv.resize(positive_img, dsize=(self.output_resolution[0], self.output_resolution[1]), interpolation=cv.INTER_CUBIC)
         positive_img = TF.to_tensor(positive_img)
 
-        # # If there are not enough images in the cluster, apply random data augmentation.
-        # # Use augmented image as positive data
-        # if len(positive_idx_list) <= 1:
+        ### Exception Handling ###
+        # If there are not enough images in the cluster, apply random data augmentation.
+        # Use augmented image as positive data
+        if len(positive_path_list) <= 1:
 
-        #     positive_img = 
+            positive_img = self.trasform(anchor_img)
+            positive_img = cv.cvtColor(positive_img, cv.COLOR_RGB2BGR)
+            positive_img = cv.resize(positive_img, dsize=(self.output_resolution[0], self.output_resolution[1]), interpolation=cv.INTER_CUBIC)
+            positive_img = TF.to_tensor(positive_img)
