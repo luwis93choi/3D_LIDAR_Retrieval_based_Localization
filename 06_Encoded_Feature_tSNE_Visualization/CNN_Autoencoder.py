@@ -15,7 +15,7 @@ import pytorch_ssim     # SSIM Loss : https://github.com/Po-Hsun-Su/pytorch-ssim
 
 class CNN_Autoencoder(nn.Module):
 
-    def __init__(self, device=None, input_size=[1, 3, 100, 100], batch_size=1, learning_rate=0.001):
+    def __init__(self, device=None, input_size=[1, 3, 100, 100], batch_size=1, learning_rate=0.001, loss_type='ssim'):
 
         super(CNN_Autoencoder, self).__init__()
 
@@ -57,8 +57,11 @@ class CNN_Autoencoder(nn.Module):
 
         self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
 
-        # self.loss = nn.MSELoss()
-        self.loss = pytorch_ssim.SSIM(window_size=11)
+        if loss_type is 'ssim':
+            self.loss = pytorch_ssim.SSIM(window_size=11)
+
+        elif loss_type is 'mse':
+            self.loss = nn.MSELoss()
 
         self.batch_size = batch_size
 
