@@ -258,10 +258,7 @@ class sensor_dataset(torch.utils.data.Dataset):
 
         positive_path_list = self.dataset_dict_generator.seq_path_dict[anchor_img_label]
 
-        positive_idx = anchor_img_idx
-        while positive_idx == anchor_img_idx:
-
-            positive_img_path = random.choice(positive_path_list)
+        positive_img_path = random.choice(positive_path_list)
 
         positive_img = np.array(Image.open(positive_img_path))
         positive_img = cv.cvtColor(positive_img, cv.COLOR_RGB2BGR)
@@ -282,7 +279,7 @@ class sensor_dataset(torch.utils.data.Dataset):
         ################################
         ### Negative Image Selection ###
         ################################
-        
+
         negative_labels = list(self.dataset_dict_generator.seq_path_dict.keys())
         negative_labels.remove(anchor_img_label)
 
