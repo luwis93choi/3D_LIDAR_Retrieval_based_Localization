@@ -170,10 +170,16 @@ class sensor_dataset(torch.utils.data.Dataset):
                        sequence_to_use=['00'], train_ratio=0, valid_ratio=0, test_ratio=0,
                        cluster_linkage='ward', cluster_distance=1.0, 
                        mode='training', output_resolution=[1280, 240],
-                       transform=transforms.Compose([transforms.RandomApply([transforms.ColorJitter(brightness=0.5, contrast=0.5)], p=0.4)])):
+                       transform=None):
 
         self.mode = mode
-        self.transform = transform
+
+        if self.transform is None:
+            self.transform = transforms.Compose([transforms.RandomApply([transforms.ColorJitter(brightness=0.5, contrast=0.5)], p=0.5),
+                                                 transforms.RandomApply([transforms.RandomCrop((random.randint(output_resolution[1]/10, output_resolution[1]/4),
+                                                                                                random.randint(output_resolution[0]/10, output_resolution[0]/4)))], p=0.5),])
+        else:
+            self.transform = transform
 
         self.dataset_dict_generator = dataset_dict_generator(img_dataset_path=img_dataset_path, pose_dataset_path=pose_dataset_path,
                                                              sequence_to_use=sequence_to_use, train_ratio=train_ratio, valid_ratio=valid_ratio, test_ratio=test_ratio,
@@ -237,7 +243,7 @@ class sensor_dataset(torch.utils.data.Dataset):
         positive_img = TF.to_tensor(positive_img)
 
         ### Exception Handling ###
-        # If there are not enough images in the cluster, apply random data augmentation.
+        # If there are not enough images in the cluster, apply user-defined data augmentation.
         # Use augmented image as positive data
         if len(positive_path_list) <= 1:
 
