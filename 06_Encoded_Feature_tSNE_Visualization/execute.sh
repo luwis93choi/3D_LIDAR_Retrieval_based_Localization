@@ -1,12 +1,12 @@
 #!/bin/sh
 
 lidar_dataset_path="/media/luwis/Linux Workspace/ICSL_Project/Visual SLAM/KITTI_data_odometry_color/data_odometry_velodyne/dataset/sequences"
-image_dataset_path="/home/byungchanchoi/KITTI Dataset/dataset/sequences"
-pose_dataset_path="/home/byungchanchoi/KITTI Dataset/data_odometry_poses/dataset/poses"
+image_dataset_path="/media/luwis/Linux Workspace/ICSL_Project/Visual SLAM/KITTI_data_odometry_color/dataset/sequences"
+pose_dataset_path="/media/luwis/Linux Workspace/ICSL_Project/Visual SLAM/KITTI_data_odometry_color/data_odometry_poses/dataset/poses"
 
 batch_size=32
 
-cuda_num='1'
+cuda_num='0'
 
 training_epoch=100
 
