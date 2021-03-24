@@ -49,12 +49,12 @@ seq_in_use = ['00', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10']
 dataset = sensor_dataset(img_dataset_path=args['input_img_file_path'], 
                          pose_dataset_path=args['input_pose_file_path'], 
                          sequence_to_use=seq_in_use, 
-                         train_ratio=0, valid_ratio=0, test_ratio=0,
+                         train_ratio=0.9, valid_ratio=0.05, test_ratio=0.05,
                          cluster_linkage='ward', cluster_distance=1.0, 
                          mode='training', output_resolution=[1280, 240],
                          transform=None)
 
-dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=8, drop_last=True)
+dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=4, drop_last=True)
 dataloader.dataset.mode = 'training'
 
 start_time = str(time.time())
