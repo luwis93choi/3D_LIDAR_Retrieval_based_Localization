@@ -188,15 +188,12 @@ class dataset_dict_generator():
 
                 if data_type == 'train':
                     self.train_dataset_writer.writerow(data)
-                    self.train_len += 1
                 
                 elif data_type == 'valid':
                     self.valid_dataset_writer.writerow(data)
-                    self.valid_len += 1
 
                 elif data_type == 'test':
                     self.test_dataset_writer.writerow(data)
-                    self.test_len += 1
 
                 self.data_idx += 1
                 self.sequence_idx += 1
@@ -233,6 +230,7 @@ class sensor_dataset(torch.utils.data.Dataset):
         next(train_reader)     # Skip header row
         for row_data in train_reader:
             self.train_data_list.append(row_data)
+            self.dataset_dict_generator.train_len += 1
         train_dataset_dict.close()
 
         self.valid_data_list = []
@@ -241,6 +239,7 @@ class sensor_dataset(torch.utils.data.Dataset):
         next(valid_reader)     # Skip heaer row
         for row_data in valid_reader:
             self.valid_data_list.append(row_data)
+            self.dataset_dict_generator.valid_len += 1
         valid_dataset_dict.close()
 
         self.test_data_list = []
@@ -249,6 +248,7 @@ class sensor_dataset(torch.utils.data.Dataset):
         next(test_reader)      # Skip header row
         for row_data in test_reader:
             self.test_data_list.append(row_data)
+            self.dataset_dict_generator.test_len += 1
         test_dataset_dict.close()
 
     def __getitem__(self, index):
