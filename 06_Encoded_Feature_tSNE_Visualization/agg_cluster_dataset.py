@@ -234,7 +234,7 @@ class sensor_dataset(torch.utils.data.Dataset):
         for row_data in train_reader:
             self.train_data_list.append(row_data)
         self.dataset_dict_generator.train_len = len(self.train_data_list)
-        print(self.dataset_dict_generator.train_len)
+        print('Training Length : {}'.format(self.dataset_dict_generator.train_len))
         train_dataset_dict.close()
 
         self.valid_data_list = []
@@ -244,6 +244,7 @@ class sensor_dataset(torch.utils.data.Dataset):
         for row_data in valid_reader:
             self.valid_data_list.append(row_data)
         self.dataset_dict_generator.valid_len = len(self.valid_data_list)
+        print('Validation Length : {}'.format(self.dataset_dict_generator.valid_len))
         valid_dataset_dict.close()
 
         self.test_data_list = []
@@ -253,6 +254,7 @@ class sensor_dataset(torch.utils.data.Dataset):
         for row_data in test_reader:
             self.test_data_list.append(row_data)
         self.dataset_dict_generator.test_len = len(self.test_data_list)
+        print('Test Length : {}'.format(self.dataset_dict_generator.test_len))
         test_dataset_dict.close()
 
     def __getitem__(self, index):
