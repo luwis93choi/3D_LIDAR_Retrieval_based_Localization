@@ -60,11 +60,15 @@ dataset = sensor_dataset(img_dataset_path=args['input_img_file_path'],
                          mode='training', output_resolution=[1280, 240],
                          transform=None)
 
-if mode == 'training': shuffle=True
-elif mode == 'tsne': shuffle=False
+if mode == 'training': 
+    
+    dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=4, drop_last=True)
+    dataloader.dataset.mode = 'training'
 
-dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=shuffle, num_workers=4, drop_last=True)
-dataloader.dataset.mode = 'training'
+elif mode == 'tsne': 
+    
+    dataloader = DataLoader(dataset=dataset, batch_size=1, shuffle=False, num_workers=4, drop_last=True)
+    dataloader.dataset.mode = 'training'
 
 start_time = str(time.time())
 loss_history = []
