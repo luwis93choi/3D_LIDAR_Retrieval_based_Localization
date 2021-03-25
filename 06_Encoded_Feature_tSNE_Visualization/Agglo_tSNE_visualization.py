@@ -6,6 +6,7 @@ import numpy as np
 import open3d as o3d
 
 import time
+import matplotlib
 import matplotlib.pyplot as plt
 
 import torch
@@ -21,6 +22,11 @@ from agg_cluster_dataset import sensor_dataset
 from CNN_Encoder import CNN_Encoder
 
 import torchvision.transforms.functional as TF
+
+from sklearn.manifold import TSNE
+
+import pyqtgraph as pg
+from pyqtgraph.Qt import QtGui, QtCore
 
 ap = argparse.ArgumentParser()
 
@@ -154,6 +160,7 @@ elif mode == 'tsne':
 
     print('t-SNE CNN encoded feature visualization')
 
+    encoded_feature_label_list = []
     encoded_feature_list = []
     for batch_idx, (anchor_img, _, _, anchor_label) in enumerate(dataloader):
 
@@ -182,6 +189,7 @@ elif mode == 'tsne':
         flat_encoded_feature = flat_encoded_feature_tensor.clone().detach().cpu().numpy()[0]
 
         encoded_feature_list.append(flat_encoded_feature)
+        encoded_feature_label_list.append(anchor_label)
 
         updates = []
         updates.append('\n')
@@ -194,4 +202,67 @@ elif mode == 'tsne':
             for line_num in range(len(updates)):
                 sys.stdout.write("\x1b[1A\x1b[2K")
 
+
+
+    ### Label color map generation ###
+
+    num_clusters = np.unique(encoded_feature_label_list)
+
+    color_map = []
+    cmap = matplotlib.cm.get_cmap('rainbow')
+    for i in range(num_clusters):
+        color_map.append(cmap(i/num_clusters))
+    color_map = np.array(color_map)
+
     
+
+    ### t-SNE Encoded Feature Visualization ###
+
+    encoded_feature_list = np.array(encoded_feature_list)
+
+    print(encoded_feature_list.shape)
+
+    embedded_encoded_features = TSNE(n_components=2, verbose=1, random_state=42, n_jobs=8).fit_transform(encoded_feature_list)
+
+    print(embedded_encoded_features.shape)
+        
+    app = pg.mkQApp()
+
+    win = pg.PlotWidget()
+    win.resize(1000,600)
+    win.setWindowTitle('CNN Autoencoder-based encoded feature visualization with t-SNE')
+    win.show()
+
+    scatter = pg.ScatterPlotItem(symbol='o', size=1)
+    win.addItem(scatter)
+
+    ptr = 0
+    plot_len = len(embedded_encoded_features)
+
+    def update():
+
+        global win, scatter, ptr, color_map, embedded_encoded_features, plot_len
+
+        embedded_features = np.transpose(embedded_encoded_features, (1, 0))
+
+        pos = []
+
+        plot_color_mask = color_map[encoded_feature_label_list[ptr]]
+
+        plot_color = tuple(color_map[plot_color_mask])
+
+        point = {'pos': embedded_features[:, ptr], 
+                 'pen' : {'color' : plot_color, 'width' : 5}}
+        
+        pos.append(point)
+
+        scatter.addPoints(pos)
+
+        if ptr < plot_len-1:
+            ptr += 1
+
+    timer = QtCore.QTimer()
+    timer.timeout.connect(update)
+    timer.start(50)
+
+    app.exec_()
