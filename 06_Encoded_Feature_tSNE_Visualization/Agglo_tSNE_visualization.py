@@ -82,7 +82,7 @@ if mode == 'training':
 
     for epoch in range(training_epoch):
 
-        for batch_idx, (anchor_img, positive_img, negative_img) in enumerate(dataloader):
+        for batch_idx, (anchor_img, positive_img, negative_img, _) in enumerate(dataloader):
 
             anchor_img_tensor = anchor_img.to(PROCESSOR)
             positive_img_tensor = positive_img.to(PROCESSOR)
@@ -155,7 +155,7 @@ elif mode == 'tsne':
     print('t-SNE CNN encoded feature visualization')
 
     encoded_feature_list = []
-    for batch_idx, (anchor_img, _, _) in enumerate(dataloader):
+    for batch_idx, (anchor_img, _, _, anchor_label) in enumerate(dataloader):
 
         anchor_img_tensor = anchor_img.to(PROCESSOR)
 

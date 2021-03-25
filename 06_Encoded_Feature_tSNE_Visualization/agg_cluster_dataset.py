@@ -321,7 +321,7 @@ class sensor_dataset(torch.utils.data.Dataset):
         negative_img = cv.resize(negative_img, dsize=(self.output_resolution[0], self.output_resolution[1]), interpolation=cv.INTER_CUBIC)
         negative_img = TF.to_tensor(negative_img)
         
-        return anchor_img, positive_img, negative_img
+        return anchor_img, positive_img, negative_img, anchor_img_label
 
     def __len__(self):
 
