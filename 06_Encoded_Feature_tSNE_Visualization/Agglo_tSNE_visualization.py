@@ -24,13 +24,19 @@ import torchvision.transforms.functional as TF
 
 ap = argparse.ArgumentParser()
 
+ap.add_argument('-m', '--mode', type=str, required=True)    # Mode change : Model Training ('training') / t-SNE Visualization ('tsne')
+
 ap.add_argument('-i', '--input_img_file_path', type=str, required=True)
 ap.add_argument('-p', '--input_pose_file_path', type=str, required=True)
 ap.add_argument('-b', '--input_batch_size', type=int, required=True)
 ap.add_argument('-c', '--input_CUDA_num', type=str, required=True)
 ap.add_argument('-e', '--training_epoch', type=int, required=True)
 
+ap.add_argument('-n', '--pretrained_model_path', type=str, required=False)
+
 args = vars(ap.parse_args())
+
+mode = args['mode']
 
 batch_size = args['input_batch_size']
 
@@ -54,7 +60,10 @@ dataset = sensor_dataset(img_dataset_path=args['input_img_file_path'],
                          mode='training', output_resolution=[1280, 240],
                          transform=None)
 
-dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=8, drop_last=True)
+if mode == 'training': shuffle=True
+elif mode == 'tsne': shuffle=False
+
+dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=shuffle, num_workers=4, drop_last=True)
 dataloader.dataset.mode = 'training'
 
 start_time = str(time.time())
@@ -63,74 +72,122 @@ plt.figure(figsize=(10, 8))
 
 loss_Q = collections.deque(maxlen=1000)
 
-for epoch in range(training_epoch):
+if mode == 'training':
 
-    for batch_idx, (anchor_img, positive_img, negative_img) in enumerate(dataloader):
+    print('CNN Model training with Triplet Loss')
+
+    for epoch in range(training_epoch):
+
+        for batch_idx, (anchor_img, positive_img, negative_img) in enumerate(dataloader):
+
+            anchor_img_tensor = anchor_img.to(PROCESSOR)
+            positive_img_tensor = positive_img.to(PROCESSOR)
+            negative_img_tensor = negative_img.to(PROCESSOR)
+
+            if (epoch == 0) and (batch_idx == 0):
+
+                print('[Init Network]')
+
+                Feature_encoder = CNN_Encoder(device=PROCESSOR, input_size=anchor_img_tensor.shape, batch_size=batch_size, learning_rate=0.001, loss_type='mse')
+
+            Feature_encoder.train()
+            
+            anchor_encoded_feature = Feature_encoder(anchor_img_tensor)
+            positive_encoded_feature = Feature_encoder(positive_img_tensor)
+            negative_encoded_feature = Feature_encoder(negative_img_tensor)
+            margin = 1.0
+
+            Feature_encoder.optimizer.zero_grad()
+            triplet_loss = Feature_encoder.loss(anchor_encoded_feature, positive_encoded_feature) \
+                        - Feature_encoder.loss(anchor_encoded_feature, negative_encoded_feature) \
+                        + margin
+            triplet_loss.backward()
+            Feature_encoder.optimizer.step()
+
+            loss_Q.append(triplet_loss.item())
+
+            updates = []
+            updates.append('\n')
+            updates.append('[Train Epoch {}/{}][Progress : {:.2%}][Batch Idx : {}] \n'.format(epoch, training_epoch, batch_idx/len(dataloader), batch_idx))
+            updates.append('[Immediate Loss] : {:.4f} \n'.format(triplet_loss.item()))
+            updates.append('[Running Average Loss] : {:.4f} \n'.format(sum(loss_Q) / len(loss_Q)))
+            final_updates = ''.join(updates)
+
+            sys.stdout.write(final_updates)
+            
+            if batch_idx < len(dataloader)-1:
+                for line_num in range(len(updates)):
+                    sys.stdout.write("\x1b[1A\x1b[2K")
+
+
+            if (epoch == 0) and (batch_idx == 0):
+                if os.path.exists('./' + start_time) == False:
+                    print('Creating save directory')
+                    os.mkdir('./' + start_time)
+
+            f = open('./' + start_time + '/running_avg_loss.txt', 'a')
+            f.write(str(sum(loss_Q) / len(loss_Q)) + '\n')
+            f.close()
+
+            f = open('./' + start_time + '/immediate_avg_loss.txt', 'a')
+            f.write(str(triplet_loss.item()) + '\n')
+            f.close()
+
+            loss_history.append(sum(loss_Q) / len(loss_Q))
+            plt.plot([i for i in range(len(loss_history))], loss_history, 'bo-')
+            plt.title('CNN Encoder - Triplet Loss' + '\nSeq in Use : ' + str(seq_in_use))
+            plt.xlabel('Iteration')
+            plt.ylabel('Running Average SSIM loss')
+            plt.tight_layout()
+            plt.savefig('./' + start_time + '/Training_Result.png')
+            plt.cla()
+
+        torch.save({'epoch' : epoch,
+                    'Autoencoder' : Feature_encoder.state_dict(),
+                    'Autoencoder_optimizer' : Feature_encoder.optimizer.state_dict()}, './' + start_time + '/Autoencoder.pth')
+
+elif mode == 'tsne':
+
+    print('t-SNE CNN encoded feature visualization')
+
+    encoded_feature_list = []
+    for batch_idx, (anchor_img, _, _) in enumerate(dataloader):
 
         anchor_img_tensor = anchor_img.to(PROCESSOR)
-        positive_img_tensor = positive_img.to(PROCESSOR)
-        negative_img_tensor = negative_img.to(PROCESSOR)
 
-        if (epoch == 0) and (batch_idx == 0):
+        if batch_idx == 0:
 
-            print('[Init Network]')
+            ### Model Loading ###
+            model_path = args['pretrained_model_path']
 
-            Feature_encoder = CNN_Encoder(device=PROCESSOR, input_size=anchor_img_tensor.shape, batch_size=batch_size, learning_rate=0.001, loss_type='mse')
+            checkpoint = torch.load(model_path)
 
-        Feature_encoder.train()
-        
-        anchor_encoded_feature = Feature_encoder(anchor_img_tensor)
-        positive_encoded_feature = Feature_encoder(positive_img_tensor)
-        negative_encoded_feature = Feature_encoder(negative_img_tensor)
-        margin = 1.0
+            if checkpoint == None:
+                print('No Model loaded : {}'.format(model_path))
+                
+            else:
+                Feature_encoder = CNN_Encoder(device=PROCESSOR, input_size=anchor_img_tensor.shape, batch_size=batch_size, learning_rate=0.001, loss_type='mse')
+                Feature_encoder.load_state_dict(checkpoint['Autoencoder'])
+                Feature_encoder.eval()
 
-        Feature_encoder.optimizer.zero_grad()
-        triplet_loss = Feature_encoder.loss(anchor_encoded_feature, positive_encoded_feature) \
-                       - Feature_encoder.loss(anchor_encoded_feature, negative_encoded_feature) \
-                       + margin
-        triplet_loss.backward()
-        Feature_encoder.optimizer.step()
+                print('Model loaded : {}'.format(args['pretrained_model_path']))
 
-        loss_Q.append(triplet_loss.item())
+        encoded_feature_tensor = Feature_encoder(anchor_img_tensor)
+
+        flat_encoded_feature_tensor = torch.flatten(encoded_feature_tensor, start_dim=1)
+        flat_encoded_feature = flat_encoded_feature_tensor.clone().detach().cpu().numpy()[0]
+
+        encoded_feature_list.append(flat_encoded_feature)
 
         updates = []
         updates.append('\n')
-        updates.append('[Train Epoch {}/{}][Progress : {:.2%}][Batch Idx : {}] \n'.format(epoch, training_epoch, batch_idx/len(dataloader), batch_idx))
-        updates.append('[Immediate Loss] : {:.4f} \n'.format(triplet_loss.item()))
-        updates.append('[Running Average Loss] : {:.4f} \n'.format(sum(loss_Q) / len(loss_Q)))
+        updates.append('[Progress : {:.2%}][Batch Idx : {}] \n'.format(batch_idx/len(dataloader), batch_idx))
         final_updates = ''.join(updates)
 
         sys.stdout.write(final_updates)
-        
+
         if batch_idx < len(dataloader)-1:
             for line_num in range(len(updates)):
                 sys.stdout.write("\x1b[1A\x1b[2K")
 
-
-        if (epoch == 0) and (batch_idx == 0):
-            if os.path.exists('./' + start_time) == False:
-                print('Creating save directory')
-                os.mkdir('./' + start_time)
-
-        f = open('./' + start_time + '/running_avg_loss.txt', 'a')
-        f.write(str(sum(loss_Q) / len(loss_Q)) + '\n')
-        f.close()
-
-        f = open('./' + start_time + '/immediate_avg_loss.txt', 'a')
-        f.write(str(triplet_loss.item()) + '\n')
-        f.close()
-
-        loss_history.append(sum(loss_Q) / len(loss_Q))
-        plt.plot([i for i in range(len(loss_history))], loss_history, 'bo-')
-        plt.title('CNN Encoder - Triplet Loss' + '\nSeq in Use : ' + str(seq_in_use))
-        plt.xlabel('Iteration')
-        plt.ylabel('Running Average SSIM loss')
-        plt.tight_layout()
-        plt.savefig('./' + start_time + '/Training_Result.png')
-        plt.cla()
-
-    torch.save({'epoch' : epoch,
-                'Autoencoder' : Feature_encoder.state_dict(),
-                'Autoencoder_optimizer' : Feature_encoder.optimizer.state_dict()}, './' + start_time + '/Autoencoder.pth')
-
-
+    
