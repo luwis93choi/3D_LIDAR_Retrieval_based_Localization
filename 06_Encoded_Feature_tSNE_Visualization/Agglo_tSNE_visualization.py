@@ -56,7 +56,8 @@ if cuda_num != '':
 
 print('Device in use : {}'.format(PROCESSOR))
 
-seq_in_use = ['00', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10']
+# seq_in_use = ['00', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10']
+seq_in_use = ['00']
 
 dataset = sensor_dataset(img_dataset_path=args['input_img_file_path'], 
                          pose_dataset_path=args['input_pose_file_path'], 
@@ -171,7 +172,7 @@ elif mode == 'tsne':
             ### Model Loading ###
             model_path = args['pretrained_model_path']
 
-            checkpoint = torch.load(model_path)
+            checkpoint = torch.load(model_path, map_location=PROCESSOR)
 
             if checkpoint == None:
                 print('No Model loaded : {}'.format(model_path))
@@ -210,8 +211,8 @@ elif mode == 'tsne':
 
     color_map = []
     cmap = matplotlib.cm.get_cmap('rainbow')
-    for i in range(num_clusters):
-        color_map.append(cmap(i/num_clusters))
+    for i in range(len(num_clusters)):
+        color_map.append(cmap(i/len(num_clusters)))
     color_map = np.array(color_map)
 
     
