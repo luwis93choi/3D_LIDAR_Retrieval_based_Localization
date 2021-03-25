@@ -199,6 +199,9 @@ class dataset_dict_generator():
                 self.sequence_idx += 1
 
         self.full_dataset_dict.close()
+        self.train_dataset_dict.close()
+        self.valid_dataset_dict.close()
+        self.test_dataset_dict.close()
 
 class sensor_dataset(torch.utils.data.Dataset):
 
