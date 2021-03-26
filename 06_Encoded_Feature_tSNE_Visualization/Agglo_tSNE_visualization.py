@@ -56,8 +56,7 @@ if cuda_num != '':
 
 print('Device in use : {}'.format(PROCESSOR))
 
-# seq_in_use = ['00', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10']
-seq_in_use = ['00']
+seq_in_use = ['00', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10']
 
 dataset = sensor_dataset(img_dataset_path=args['input_img_file_path'], 
                          pose_dataset_path=args['input_pose_file_path'], 
@@ -190,7 +189,7 @@ elif mode == 'tsne':
         flat_encoded_feature = flat_encoded_feature_tensor.clone().detach().cpu().numpy()[0]
 
         encoded_feature_list.append(flat_encoded_feature)
-        encoded_feature_label_list.append(anchor_label)
+        encoded_feature_label_list.append(anchor_label[0])
 
         updates = []
         updates.append('\n')
@@ -206,14 +205,13 @@ elif mode == 'tsne':
 
 
     ### Label color map generation ###
+    encoded_feature_label_list = np.array(encoded_feature_label_list)
+    cluster_names = np.unique(encoded_feature_label_list)
 
-    num_clusters = np.unique(encoded_feature_label_list)
-
-    color_map = []
+    color_map = {}
     cmap = matplotlib.cm.get_cmap('rainbow')
-    for i in range(len(num_clusters)):
-        color_map.append(cmap(i/len(num_clusters)))
-    color_map = np.array(color_map)
+    for cluster_name, i in zip(cluster_names, range(len(cluster_names))):
+        color_map[cluster_name] = cmap(i/len(cluster_names))
 
     
 
@@ -223,7 +221,7 @@ elif mode == 'tsne':
 
     print(encoded_feature_list.shape)
 
-    embedded_encoded_features = TSNE(n_components=2, verbose=1, random_state=42, n_jobs=8).fit_transform(encoded_feature_list)
+    embedded_encoded_features = TSNE(n_components=2, verbose=2, random_state=42, n_jobs=1).fit_transform(encoded_feature_list)
 
     print(embedded_encoded_features.shape)
         
@@ -247,10 +245,8 @@ elif mode == 'tsne':
         embedded_features = np.transpose(embedded_encoded_features, (1, 0))
 
         pos = []
-
-        plot_color_mask = color_map[encoded_feature_label_list[ptr]]
-
-        plot_color = tuple(color_map[plot_color_mask])
+        
+        plot_color = tuple(255 * np.array(color_map[encoded_feature_label_list[ptr]]))[:3]
 
         point = {'pos': embedded_features[:, ptr], 
                  'pen' : {'color' : plot_color, 'width' : 5}}
