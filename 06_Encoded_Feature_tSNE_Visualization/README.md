@@ -9,8 +9,11 @@ This implementation utilizes t-SNE (T-distributed Stochastic Neighbor Embedding)
 
 ## Requirements
 [KITTI Visual Odometry Dataset](http://www.cvlibs.net/datasets/kitti/eval_odometry.php) (Dataset for training DNN endocer and visualizing latent feature vector clustering)
+
 [PyTorch](https://pytorch.org/) (Higher than 1.9.0)
+
 [PyQtGraph](https://www.pyqtgraph.org/)
+
 [matplotlib](https://matplotlib.org/)
 
 ## Dataset Installation and Setup
