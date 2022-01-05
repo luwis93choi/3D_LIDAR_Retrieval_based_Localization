@@ -5,7 +5,7 @@ This implementation can compare the latent feature vector clustering between DNN
 
 This implementation utilizes t-SNE (T-distributed Stochastic Neighbor Embedding) for latente feature clustering visualization.
 
-[PyQt](https://www.pyqtgraph.org/) is used as t-SNE visualization tool.
+[PyQtGraph](https://www.pyqtgraph.org/) is used as t-SNE visualization tool.
 
 ## Requirements
 [KITTI Visual Odometry Dataset](http://www.cvlibs.net/datasets/kitti/eval_odometry.php) (Dataset for training DNN endocer and visualizing latent feature vector clustering)
