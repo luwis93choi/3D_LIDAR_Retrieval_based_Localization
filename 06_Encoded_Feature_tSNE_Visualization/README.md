@@ -170,7 +170,7 @@ Set mode as 'training' in order to train DNN encoder with MSE-based triplet loss
 
 Set mode as 'tsne' in order to visualize the latent feature vector clustering from trained network
 
-- lidar_dataset_path : Path to 3D LiDAR point cloud dataset directory
+- image_dataset_path : Path to front camera image dataset directory
 - pose_dataset_path : Path to 6DOF IMU groundtruth dataset directory
 - pretrained_model_path : Path to trained model produced from training mode
 - batch_size : Batch size for training deep neural network (* For t-SNE visualization, batch size must be set as 1.)
